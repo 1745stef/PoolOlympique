@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Environment variables (NE JAMAIS commiter)
+.env
+*.env.local
+
+# Build output
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
