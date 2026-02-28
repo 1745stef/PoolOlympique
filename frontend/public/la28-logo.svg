@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 100">
+  <style>
+    .la28 { font-family: Arial Black, Impact, sans-serif; font-weight: 900; font-size: 96px; }
+  </style>
+  <!-- L -->
+  <text class="la28" x="0" y="88" fill="#111111">L</text>
+  <!-- A en corail officiel LA28 -->
+  <text class="la28" x="68" y="88" fill="#E8390E">A</text>
+  <!-- 28 -->
+  <text class="la28" x="142" y="88" fill="#111111">28</text>
+</svg>

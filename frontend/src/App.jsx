@@ -4,35 +4,29 @@ import AuthPage from './pages/AuthPage';
 import PicksPage from './pages/PicksPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import AdminPage from './pages/AdminPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 import './styles.css';
 
 function AppContent() {
   const { user, loading, logout } = useAuth();
   const [tab, setTab] = useState('picks');
 
-  if (loading) {
-    return (
-      <div className="splash">
-        <div className="rings">
-          {['#0081C8', '#FCB131', '#000000', '#00A651', '#EE334E'].map((c, i) => (
-            <span key={i} className="ring" style={{ borderColor: c }} />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="splash">
+      <img src="/la28-logo.svg" alt="LA28" className="splash-logo" />
+    </div>
+  );
 
   if (!user) return <AuthPage />;
+
+  // Forcer le changement de mot de passe
+  if (user.must_change_password) return <ChangePasswordPage />;
 
   return (
     <div className="app">
       <header className="app-header">
         <div className="header-left">
-          <div className="rings-small">
-            {['#0081C8', '#FCB131', '#000000', '#00A651', '#EE334E'].map((c, i) => (
-              <span key={i} className="ring-sm" style={{ borderColor: c }} />
-            ))}
-          </div>
+          <img src="/la28-logo.svg" alt="LA28" className="header-logo" />
           <div>
             <h1>Pool Olympique</h1>
             <span className="edition">Los Angeles 2028</span>
@@ -45,16 +39,10 @@ function AppContent() {
       </header>
 
       <nav className="app-nav">
-        <button className={tab === 'picks' ? 'active' : ''} onClick={() => setTab('picks')}>
-          🎯 Mes pronostics
-        </button>
-        <button className={tab === 'leaderboard' ? 'active' : ''} onClick={() => setTab('leaderboard')}>
-          🏆 Classement
-        </button>
+        <button className={tab === 'picks' ? 'active' : ''} onClick={() => setTab('picks')}>🎯 Mes pronostics</button>
+        <button className={tab === 'leaderboard' ? 'active' : ''} onClick={() => setTab('leaderboard')}>🏆 Classement</button>
         {user.is_admin && (
-          <button className={`${tab === 'admin' ? 'active' : ''} admin-tab`} onClick={() => setTab('admin')}>
-            🔑 Administration
-          </button>
+          <button className={`${tab === 'admin' ? 'active' : ''} admin-tab`} onClick={() => setTab('admin')}>🔑 Administration</button>
         )}
       </nav>
 
@@ -68,9 +56,5 @@ function AppContent() {
 }
 
 export default function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
+  return <AuthProvider><AppContent /></AuthProvider>;
 }

@@ -11,12 +11,10 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('token');
     if (token) {
       authApi.me()
-        .then((data) => setUser(data.user))
+        .then(data => setUser(data.user))
         .catch(() => localStorage.removeItem('token'))
         .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+    } else setLoading(false);
   }, []);
 
   const login = async (username, password) => {
@@ -33,18 +31,15 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-  };
+  const logout = () => { localStorage.removeItem('token'); setUser(null); };
+
+  const updateUser = (newUser) => setUser(newUser);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export function useAuth() { return useContext(AuthContext); }
