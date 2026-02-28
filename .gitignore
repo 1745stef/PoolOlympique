@@ -4,7 +4,6 @@ node_modules/
 # Environment variables (NE JAMAIS commiter)
 .env
 *.env.local
-supabase_schema.sql
 
 # Build output
 dist/
@@ -21,3 +20,4 @@ npm-debug.log*
 # IDE
 .vscode/
 .idea/
+supabase_schema.sql
