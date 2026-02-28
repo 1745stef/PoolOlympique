@@ -13,7 +13,7 @@ function AppContent() {
 
   if (loading) return (
     <div className="splash">
-      <img src="/la28-logo.svg" alt="LA28" className="splash-logo" />
+      <img src="/la28-logo.png" alt="LA28" className="splash-logo" />
     </div>
   );
 
@@ -26,7 +26,7 @@ function AppContent() {
     <div className="app">
       <header className="app-header">
         <div className="header-left">
-          <img src="/la28-logo.svg" alt="LA28" className="header-logo" />
+          <img src="/la28-logo.png" alt="LA28" className="header-logo" />
           <div>
             <h1>Pool Olympique</h1>
             <span className="edition">Los Angeles 2028</span>

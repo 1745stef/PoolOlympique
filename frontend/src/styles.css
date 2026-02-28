@@ -309,3 +309,95 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
   .user-row span:nth-child(2), .user-row span:nth-child(3) { display: none; }
   .results-toolbar { flex-direction: column; }
 }
+
+/* ── Password Eye ─────────────────────────────────────── */
+.pwd-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.pwd-wrapper input {
+  width: 100%;
+  padding-right: 44px;
+}
+.pwd-eye {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.pwd-eye:hover { color: var(--text); }
+.pwd-eye svg { width: 18px; height: 18px; }
+
+/* ── Passkey / Face ID ────────────────────────────────── */
+.passkey-section { margin-top: 16px; }
+.passkey-divider {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--muted); font-size: 0.82rem; margin-bottom: 12px;
+}
+.passkey-divider::before, .passkey-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+.btn-passkey {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: var(--bg2);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 12px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-passkey:hover:not(:disabled) {
+  border-color: var(--la-blue);
+  background: rgba(0,102,204,0.08);
+  color: var(--la-blue-l);
+}
+.btn-passkey:disabled { opacity: 0.5; cursor: wait; }
+.btn-passkey-setup {
+  border-color: rgba(0,102,204,0.3);
+  color: var(--la-blue-l);
+  background: rgba(0,102,204,0.06);
+}
+.passkey-icon svg { width: 20px; height: 20px; }
+
+/* ── Bouton supprimer groupe — style cohérent ─────────── */
+.group-header .btn-delete {
+  background: transparent;
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: var(--muted);
+  padding: 5px 10px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+  transition: all 0.2s;
+}
+.group-header .btn-delete:hover {
+  background: rgba(232,57,14,0.1);
+  border-color: rgba(232,57,14,0.3);
+  color: #ff8070;
+}
+
+/* ── Auth logo PNG (pas de fond blanc) ───────────────── */
+.auth-la28-logo {
+  width: 100px;
+  height: auto;
+  object-fit: contain;
+}
+.header-logo {
+  width: 40px;
+  height: auto;
+  object-fit: contain;
+}
