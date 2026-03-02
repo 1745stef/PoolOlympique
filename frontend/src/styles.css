@@ -106,7 +106,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
 .btn-logout:hover { background: rgba(232,57,14,0.2); }
 
 /* ── Nav ──────────────────────────────────────────────── */
-.app-nav { background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; padding: 0 24px; }
+.app-nav { background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; padding: 0 24px; position: sticky; top: 57px; z-index: 99; }
 .app-nav button { background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--muted); padding: 14px 20px; font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-bottom: -1px; }
 .app-nav button.active { color: var(--la-coral); border-bottom-color: var(--la-coral); }
 .app-nav button.admin-tab.active { color: var(--la-gold); border-bottom-color: var(--la-gold); }
@@ -400,4 +400,910 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
   width: 40px;
   height: auto;
   object-fit: contain;
+}
+
+/* ── Progress ring — % seulement ─────────────────────── */
+.progress-text {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.3rem; color: var(--la-coral); line-height: 1;
+}
+
+/* ── Leaderboard simplifié ────────────────────────────── */
+.lb-header-simple, .lb-row-simple {
+  grid-template-columns: 60px 1fr 100px !important;
+}
+
+/* ── Mes Résultats ────────────────────────────────────── */
+.my-results-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px; margin-bottom: 20px;
+}
+.summary-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 4px; text-align: center;
+}
+.summary-card.summary-total { border-color: rgba(232,57,14,0.3); }
+.summary-val {
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem;
+  line-height: 1; color: var(--la-white);
+}
+.summary-val.gold-count   { color: #d4a017; }
+.summary-val.silver-count { color: #b8c0cc; }
+.summary-val.bronze-count { color: #cd7f32; }
+.summary-lbl { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+.my-results-list { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
+
+.my-result-row {
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 12px 16px;
+  display: grid; grid-template-columns: 1fr 140px 160px 80px;
+  align-items: center; gap: 12px; transition: background 0.15s;
+}
+.my-result-row.scored {
+  border-color: rgba(232,57,14,0.3);
+  background: rgba(232,57,14,0.04);
+}
+.my-result-row.pending { opacity: 0.65; }
+
+.mr-disc { display: flex; align-items: center; gap: 8px; }
+.mr-disc-name { font-weight: 600; font-size: 0.92rem; }
+.mr-pick { display: flex; align-items: center; gap: 6px; font-size: 0.88rem; color: var(--muted); }
+.mr-medals { display: flex; flex-wrap: wrap; gap: 4px; }
+.mr-medal-badge {
+  background: rgba(232,57,14,0.12); border: 1px solid rgba(232,57,14,0.3);
+  border-radius: 12px; padding: 2px 8px; font-size: 0.78rem; font-weight: 600;
+  color: #ff9070;
+}
+.mr-pending { color: var(--muted); font-size: 0.82rem; font-style: italic; }
+.mr-miss { color: var(--muted); font-size: 0.82rem; }
+.mr-pts { text-align: right; }
+.pts-badge {
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem;
+  color: var(--la-coral); white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .my-result-row { grid-template-columns: 1fr 80px; grid-template-rows: auto auto; }
+  .mr-pick { display: none; }
+  .mr-medals { grid-column: 1; }
+  .mr-pts { grid-column: 2; grid-row: 1; }
+}
+
+/* ── Picks toolbar ────────────────────────────────────── */
+.picks-toolbar {
+  display: flex; gap: 10px; align-items: center; margin-bottom: 16px;
+}
+.btn-filter-unpicked {
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: 20px; color: var(--muted); padding: 9px 16px;
+  font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 500;
+  cursor: pointer; white-space: nowrap; transition: all 0.15s;
+}
+.btn-filter-unpicked.active {
+  background: rgba(232,57,14,0.12); border-color: var(--la-coral);
+  color: #ff8070;
+}
+
+/* Discipline card — sport tag + deadline */
+.disc-text { display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.disc-sport-tag { font-size: 0.72rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+.disc-deadline { font-size: 0.72rem; color: var(--la-blue-l); white-space: nowrap; opacity: 0.8; }
+.lock-badge { font-size: 0.85rem; opacity: 0.5; }
+.locked-disc { opacity: 0.55; }
+.locked-disc .discipline-header { cursor: default; }
+
+/* ── Day Navigation ───────────────────────────────────── */
+.day-nav {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px;
+  margin-bottom: 20px; scrollbar-width: thin;
+  scrollbar-color: var(--card2) transparent;
+}
+.day-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 56px; padding: 8px 6px; background: var(--card);
+  border: 1.5px solid var(--border); border-radius: 10px;
+  color: var(--muted); font-family: 'Outfit', sans-serif;
+  cursor: pointer; transition: all 0.15s; position: relative; flex-shrink: 0;
+}
+.day-btn:hover { border-color: rgba(232,57,14,0.3); color: var(--text); }
+.day-btn.active { border-color: var(--la-coral); background: rgba(232,57,14,0.1); color: var(--la-coral); }
+.day-btn.has-points { border-color: rgba(245,166,35,0.4); }
+.day-num { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; line-height: 1; }
+.day-date-mini { font-size: 0.62rem; white-space: nowrap; }
+.day-pick-dot {
+  position: absolute; top: 5px; right: 5px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--la-coral);
+}
+
+/* ── Day Sections ─────────────────────────────────────── */
+.days-list { display: flex; flex-direction: column; gap: 16px; }
+.day-section { scroll-margin-top: 80px; }
+.day-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; background: var(--card2);
+  border: 1px solid var(--border); border-radius: 10px 10px 0 0;
+  border-bottom: 2px solid var(--border);
+}
+.day-header.today { border-bottom-color: var(--la-coral); }
+.day-label { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; color: var(--la-white); }
+.day-full-date { font-size: 0.85rem; color: var(--muted); }
+.today-badge {
+  margin-left: auto; background: rgba(232,57,14,0.15);
+  border: 1px solid rgba(232,57,14,0.3); border-radius: 10px;
+  color: var(--la-coral); font-size: 0.72rem; font-weight: 700;
+  padding: 2px 10px; text-transform: uppercase; letter-spacing: 1px;
+}
+
+.day-disciplines {
+  background: var(--card); border: 1px solid var(--border);
+  border-top: none; border-radius: 0 0 10px 10px; overflow: hidden;
+}
+.day-disc-row {
+  display: grid; grid-template-columns: 1fr 130px 120px 70px;
+  padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+  align-items: center; gap: 8px; transition: background 0.1s;
+}
+.day-disc-row:last-child { border-bottom: none; }
+.day-disc-row.scored { background: rgba(232,57,14,0.04); }
+.day-disc-row.no-pick-row { opacity: 0.5; }
+.ddr-disc { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ddr-name { font-weight: 600; font-size: 0.88rem; }
+.medal-day-tag {
+  font-size: 0.65rem; background: rgba(245,166,35,0.15);
+  border: 1px solid rgba(245,166,35,0.3); border-radius: 8px;
+  color: var(--la-gold-l); padding: 1px 6px;
+}
+.ddr-pick { font-size: 0.85rem; color: var(--muted); }
+.ddr-country { color: var(--text); font-weight: 500; }
+.ddr-no-pick { color: var(--muted); }
+.ddr-result { display: flex; flex-wrap: wrap; gap: 4px; }
+.ddr-pts { text-align: right; }
+
+@media (max-width: 600px) {
+  .day-disc-row { grid-template-columns: 1fr 80px; grid-template-rows: auto auto; gap: 4px; }
+  .ddr-pick { display: none; }
+  .ddr-result { grid-column: 1; }
+  .ddr-pts { grid-column: 2; grid-row: 1; }
+}
+
+/* ════════════════════════════════════════════════════════
+   CORRECTIONS v8
+   ════════════════════════════════════════════════════════ */
+
+/* Emoji disciplines */
+.disc-emoji { font-size: 1.4rem; flex-shrink: 0; line-height: 1; }
+.disc-emoji-sm { font-size: 1.1rem; flex-shrink: 0; }
+
+/* Fix ddr-disc layout */
+.ddr-disc { display: flex; align-items: center; gap: 8px; }
+
+/* Day section — remove old .days-list wrapper */
+.day-disciplines {
+  background: var(--card); border: 1px solid var(--border);
+  border-top: none; border-radius: 0 0 10px 10px; overflow: hidden;
+  margin-bottom: 4px;
+}
+.day-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; background: var(--card2);
+  border: 1px solid var(--border); border-radius: 10px 10px 0 0;
+  border-bottom: 2px solid var(--border); margin-top: 8px;
+}
+.day-header.today { border-bottom-color: var(--la-coral); }
+
+/* is-today badge on day-btn */
+.day-btn.is-today { border-color: var(--la-blue) !important; color: var(--la-blue-l) !important; }
+
+/* ════════════════════════════════════════════════════════
+   RESPONSIVE MOBILE — refonte complète
+   ════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+
+  /* Header */
+  .app-header { padding: 10px 14px; gap: 8px; }
+  .app-header h1 { font-size: 1.1rem; }
+  .edition { font-size: 0.6rem; }
+  .header-logo { width: 32px; }
+  .btn-logout { padding: 5px 10px; font-size: 0.75rem; }
+
+  /* Nav */
+  .app-nav { padding: 0 4px; overflow-x: auto; }
+  .app-nav button { padding: 11px 12px; font-size: 0.82rem; white-space: nowrap; }
+
+  /* Main */
+  .app-main { padding: 12px; }
+
+  /* Auth */
+  .auth-card { padding: 28px 20px; }
+  .auth-la28-logo { width: 70px; }
+
+  /* Picks */
+  .picks-header { flex-direction: row; gap: 14px; }
+  .picks-header h2 { font-size: 1.2rem; }
+  .picks-toolbar { flex-wrap: wrap; }
+  .btn-filter-unpicked { width: 100%; text-align: center; }
+  .discipline-header { padding: 12px 14px; }
+  .disc-name { font-size: 0.9rem; }
+  .disc-sport-tag { font-size: 0.65rem; }
+  .disc-deadline { display: none; }
+  .country-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+  .country-btn { padding: 8px 4px; font-size: 0.72rem; }
+  .flag { width: 28px; height: 20px; }
+
+  /* Leaderboard */
+  .lb-header-simple, .lb-row-simple {
+    grid-template-columns: 44px 1fr 80px !important;
+    padding: 10px 12px;
+  }
+
+  /* Admin stats */
+  .admin-stats { grid-template-columns: 1fr 1fr; }
+  .results-grid { grid-template-columns: 1fr; }
+  .results-toolbar { flex-direction: column; }
+  .users-header, .user-row { grid-template-columns: 1fr auto; }
+  .users-header span:nth-child(2),
+  .users-header span:nth-child(3),
+  .user-row .user-date,
+  .user-row .user-role { display: none; }
+  .user-actions { flex-wrap: wrap; gap: 4px; }
+
+  /* My Results summary */
+  .my-results-summary {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .summary-card { padding: 10px 8px; }
+  .summary-val { font-size: 1.4rem; }
+
+  /* Day nav */
+  .day-btn { min-width: 48px; padding: 6px 4px; }
+  .day-num { font-size: 0.85rem; }
+  .day-date-mini { font-size: 0.55rem; }
+
+  /* Day disciplines row */
+  .day-disc-row {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 4px 8px;
+    padding: 10px 12px;
+  }
+  .ddr-disc { grid-column: 1; }
+  .ddr-pts { grid-column: 2; grid-row: 1; }
+  .ddr-pick { grid-column: 1; grid-row: 2; font-size: 0.8rem; }
+  .ddr-result { grid-column: 1 / -1; grid-row: 3; }
+
+  /* Groups */
+  .groups-list .group-card { padding: 12px; }
+  .create-group-row { flex-direction: column; }
+  .btn-create-group { width: 100%; padding: 10px; }
+
+  /* Modal */
+  .modal-card { padding: 24px 18px; }
+
+  /* Points legend */
+  .points-legend { font-size: 0.78rem; gap: 8px; }
+
+  /* Admin tabs */
+  .admin-tabs button { padding: 8px 10px; font-size: 0.8rem; }
+}
+
+/* ════════════════════════════════════════════════════════
+   CORRECTIONS V9
+   ════════════════════════════════════════════════════════ */
+
+/* ── Tableau résumé style V6 ──────────────────────────── */
+.results-summary-table {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; margin-bottom: 16px;
+}
+.rst-header {
+  display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1.5fr;
+  padding: 10px 18px; background: var(--bg2);
+  font-size: 0.75rem; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  border-bottom: 1px solid var(--border);
+}
+.rst-row {
+  display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1.5fr;
+  padding: 14px 18px; align-items: center;
+}
+.rst-total { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; color: var(--la-coral); }
+.rst-medal { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; }
+.gold-val   { color: #FFD700; }
+.silver-val { color: #C0C0C0; }
+.bronze-val { color: #CD7F32; }
+.rst-picks  { font-size: 0.82rem; color: var(--muted); }
+
+/* ── Pastilles médailles ──────────────────────────────── */
+.medal-badges-row {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 10px; margin-bottom: 16px;
+}
+.medal-badge-card {
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 14px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.gold-card   { border-color: rgba(255,215,0,0.3);   background: rgba(255,215,0,0.05); }
+.silver-card { border-color: rgba(192,192,192,0.3); background: rgba(192,192,192,0.05); }
+.bronze-card { border-color: rgba(205,127,50,0.3);  background: rgba(205,127,50,0.05); }
+.pts-card    { border-color: rgba(232,57,14,0.3);   background: rgba(232,57,14,0.05); }
+.medal-badge-icon  { font-size: 1.4rem; line-height: 1; }
+.medal-badge-count { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; line-height: 1; }
+.gold-card   .medal-badge-count { color: #FFD700; }
+.silver-card .medal-badge-count { color: #C0C0C0; }
+.bronze-card .medal-badge-count { color: #CD7F32; }
+.pts-card    .medal-badge-count { color: var(--la-coral); }
+.medal-badge-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+/* ── Médailles variables dans les lignes ─────────────── */
+.mr-medal-badge.medal-or     { background: rgba(255,215,0,0.15);   border-color: rgba(255,215,0,0.4);   color: #FFD700; }
+.mr-medal-badge.medal-argent { background: rgba(192,192,192,0.15); border-color: rgba(192,192,192,0.4); color: #D0D0D0; }
+.mr-medal-badge.medal-bronze { background: rgba(205,127,50,0.15);  border-color: rgba(205,127,50,0.4);  color: #CD7F32; }
+
+/* ── Day header avec résumé ───────────────────────────── */
+.day-summary-mini {
+  margin-left: auto; font-size: 0.78rem; color: var(--muted);
+}
+.ddr-disc-text { display: flex; flex-direction: column; gap: 2px; }
+
+/* ── Mobile v9 ────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .rst-header, .rst-row {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .rst-header span:nth-child(2),
+  .rst-row .rst-picks { display: none; }
+  .medal-badges-row { grid-template-columns: repeat(2, 1fr); }
+  .day-summary-mini { display: none; }
+  .results-summary-table { display: none; } /* Les pastilles suffisent sur mobile */
+}
+
+/* ════════════════════════════════════════════════════════
+   TABLEAU STYLE V6 (image de référence)
+   ════════════════════════════════════════════════════════ */
+.v6-table {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden; margin-bottom: 20px;
+}
+.v6-table-header {
+  display: grid; grid-template-columns: 2fr 1.5fr 2fr 80px;
+  padding: 10px 16px; background: rgba(255,255,255,0.04);
+  font-size: 0.72rem; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  border-bottom: 1px solid var(--border);
+}
+.v6-table-empty {
+  padding: 20px; text-align: center; color: var(--muted); font-size: 0.9rem;
+}
+.v6-table-row {
+  display: grid; grid-template-columns: 2fr 1.5fr 2fr 80px;
+  padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+  align-items: center; gap: 8px; transition: background 0.1s;
+}
+.v6-table-row:last-child { border-bottom: none; }
+.v6-table-row.v6-scored { background: rgba(232,57,14,0.04); }
+
+.v6-disc { display: flex; align-items: center; gap: 8px; }
+.v6-emoji { font-size: 1.2rem; flex-shrink: 0; }
+.v6-disc-name { font-weight: 600; font-size: 0.88rem; }
+
+.v6-country { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+
+.v6-medals { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.v6-pending { color: var(--muted); font-size: 0.82rem; }
+.v6-miss    { color: var(--muted); font-size: 0.82rem; }
+
+.v6-medal-pill {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 0.78rem; font-weight: 700; border: 1px solid transparent;
+}
+.v6-medal-pill.medal-or     { background: rgba(255,215,0,0.15);   border-color: rgba(255,215,0,0.4);   color: #FFD700; }
+.v6-medal-pill.medal-argent { background: rgba(192,192,192,0.15); border-color: rgba(192,192,192,0.4); color: #D0D0D0; }
+.v6-medal-pill.medal-bronze { background: rgba(205,127,50,0.15);  border-color: rgba(205,127,50,0.4);  color: #CD7F32; }
+
+.v6-pts { text-align: right; }
+.v6-pts-val {
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem;
+  color: var(--la-coral); white-space: nowrap;
+}
+
+/* Couleurs médailles dans la liste du jour aussi */
+.mr-medal-badge.medal-or     { background: rgba(255,215,0,0.15);   border-color: rgba(255,215,0,0.4);   color: #FFD700; }
+.mr-medal-badge.medal-argent { background: rgba(192,192,192,0.15); border-color: rgba(192,192,192,0.4); color: #D0D0D0; }
+.mr-medal-badge.medal-bronze { background: rgba(205,127,50,0.15);  border-color: rgba(205,127,50,0.4);  color: #CD7F32; }
+
+/* Mobile */
+@media (max-width: 640px) {
+  .v6-table-header, .v6-table-row {
+    grid-template-columns: 1.5fr 1fr 1.5fr 60px;
+  }
+  .v6-disc-name { font-size: 0.8rem; }
+  .v6-medal-pill { font-size: 0.72rem; padding: 2px 7px; }
+}
+
+/* ════════════════════════════════════════════════════════
+   PAGE MÉDAILLES
+   ════════════════════════════════════════════════════════ */
+.medals-page { padding-bottom: 40px; }
+
+.medals-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
+  align-items: start;
+}
+
+.medals-left, .medals-right {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.medals-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px;
+  padding: 14px 16px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+.medals-header h3 { margin: 0; font-size: 1rem; font-weight: 700; }
+
+.medals-sort-btns { display: flex; gap: 6px; }
+.medals-sort-btns button {
+  background: transparent; border: 1.5px solid var(--border);
+  border-radius: 20px; color: var(--muted);
+  padding: 5px 12px; font-family: 'Outfit', sans-serif;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.medals-sort-btns button.active {
+  border-color: var(--la-coral); color: var(--la-coral);
+  background: rgba(232,57,14,0.08);
+}
+
+/* ── Tableau nations ── */
+.nations-table { overflow: hidden; }
+.nations-header {
+  display: grid; grid-template-columns: 44px 1fr 50px 50px 50px 55px;
+  padding: 8px 16px;
+  font-size: 0.7rem; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+}
+.nation-row {
+  display: grid; grid-template-columns: 44px 1fr 50px 50px 50px 55px;
+  padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+  align-items: center; gap: 4px; cursor: pointer; transition: background 0.1s;
+}
+.nation-row:last-child { border-bottom: none; }
+.nation-row:hover { background: rgba(255,255,255,0.03); }
+.nation-row.nation-selected { background: rgba(232,57,14,0.07); border-left: 3px solid var(--la-coral); }
+.nation-row.top-1 { background: rgba(255,215,0,0.04); }
+.nation-row.top-2 { background: rgba(192,192,192,0.04); }
+.nation-row.top-3 { background: rgba(205,127,50,0.04); }
+
+.nation-rank { font-size: 0.85rem; text-align: center; }
+.nation-name { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; font-weight: 500; }
+.nation-flag { width: 22px; height: 15px; object-fit: cover; border-radius: 2px; flex-shrink: 0; }
+
+.medal-col { text-align: center; font-family: 'Bebas Neue', sans-serif; font-size: 1rem; }
+.gold-col   { color: #FFD700; }
+.silver-col { color: #C0C0C0; }
+.bronze-col { color: #CD7F32; }
+.total-col  { color: var(--muted); font-size: 0.85rem; }
+.gold-val   { color: #FFD700; }
+.silver-val { color: #C0C0C0; }
+.bronze-val { color: #CD7F32; }
+.total-val  { color: var(--text); font-weight: 600; }
+
+/* ── Détail pays ── */
+.country-picker { padding: 12px; border-bottom: 1px solid var(--border); }
+.country-picker-list {
+  max-height: 200px; overflow-y: auto; margin-top: 8px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.country-picker-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; background: transparent;
+  border: 1px solid transparent; border-radius: 8px;
+  color: var(--text); font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem; text-align: left; cursor: pointer; transition: all 0.1s;
+}
+.country-picker-btn:hover { background: rgba(255,255,255,0.04); }
+.country-picker-btn.selected {
+  background: rgba(232,57,14,0.1); border-color: rgba(232,57,14,0.3);
+  color: #ff8070;
+}
+.flag-mini { width: 20px; height: 14px; object-fit: cover; border-radius: 2px; flex-shrink: 0; }
+
+.country-detail { padding: 14px 16px; }
+.country-detail-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.country-detail-flag { width: 36px; height: 24px; object-fit: cover; border-radius: 3px; }
+.country-detail-header h4 { margin: 0; font-size: 1rem; flex: 1; }
+.country-detail-counts { display: flex; gap: 10px; font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; }
+
+.country-disc-list { display: flex; flex-direction: column; gap: 4px; }
+.country-disc-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; background: rgba(255,255,255,0.02);
+  border-radius: 8px; border: 1px solid rgba(255,255,255,0.04);
+}
+.country-disc-name { flex: 1; font-size: 0.85rem; font-weight: 500; }
+.country-disc-medals { display: flex; gap: 4px; }
+
+/* ── Responsive médailles ── */
+@media (max-width: 900px) {
+  .medals-layout { grid-template-columns: 1fr; }
+  .medals-right { order: -1; }
+}
+@media (max-width: 640px) {
+  .nations-header, .nation-row {
+    grid-template-columns: 36px 1fr 40px 40px 40px 45px;
+    padding: 8px 10px; font-size: 0.8rem;
+  }
+  .nation-name { font-size: 0.8rem; gap: 5px; }
+  .medals-sort-btns { flex-direction: column; }
+  .medals-header { flex-direction: column; align-items: flex-start; }
+}
+
+/* ════════════════════════════════════════════════════════
+   V14 — Fold tableau + scroll nations + dropdown
+   ════════════════════════════════════════════════════════ */
+
+/* ── Fold / Extend tableau ──────────────────────────────── */
+.v6-table-toggle {
+  display: flex; align-items: stretch; width: 100%;
+  background: rgba(255,255,255,0.04); border: none;
+  cursor: pointer; padding: 0; border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.v6-table-toggle:hover { background: rgba(255,255,255,0.07); }
+.v6-table-toggle .v6-table-header {
+  display: grid; grid-template-columns: 2fr 1.5fr 2fr 80px;
+  padding: 12px 16px;
+  font-size: 0.72rem; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  border-bottom: none; /* déjà sur le parent */
+}
+.v6-toggle-arrow {
+  display: flex; align-items: center; padding: 0 14px;
+  color: var(--muted); font-size: 0.7rem; transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.v6-toggle-arrow.open { transform: rotate(180deg); }
+
+/* ── Nations table avec scrollbar ──────────────────────── */
+.nations-table-wrap { overflow: hidden; }
+.nations-scroll {
+  max-height: 520px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.nations-scroll::-webkit-scrollbar { width: 6px; }
+.nations-scroll::-webkit-scrollbar-track { background: transparent; }
+.nations-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.no-medal-row { opacity: 0.45; }
+.no-medal-dash { color: var(--muted); font-size: 0.85rem; }
+
+/* ── Dropdown pays ──────────────────────────────────────── */
+.country-dropdown-wrap { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.country-dropdown {
+  width: 100%;
+  background: var(--bg2);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem;
+  padding: 10px 14px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+  transition: border-color 0.15s;
+}
+.country-dropdown:focus {
+  outline: none;
+  border-color: var(--la-coral);
+}
+.country-dropdown option {
+  background: #1a1a1a;
+  color: var(--text);
+}
+
+/* ── Fix scroll bandeau jours ────────────────────────────
+   Empêche le browser de faire son propre scroll-into-view
+   sur les boutons du bandeau quand ils reçoivent le focus  */
+.day-nav {
+  scroll-behavior: auto !important;
+  /* Empêche le scroll natif sur focus */
+  overflow-x: auto;
+}
+.day-nav .day-btn:focus {
+  outline: none;
+}
+.day-nav .day-btn:focus-visible {
+  outline: 2px solid var(--la-coral);
+  outline-offset: 2px;
+}
+
+/* ── V19 scroll fix : scroll-snap sur le bandeau ────────── */
+.day-nav {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.day-btn {
+  scroll-snap-align: start;
+  scroll-margin-left: 16px;
+}
+
+/* ── Nav sticky mobile ── */
+@media (max-width: 640px) {
+  .app-nav { top: 52px; }
+}
+
+/* ════════════════════════════════════════════════════════
+   V20 — UserMenu + Avatar
+   ════════════════════════════════════════════════════════ */
+
+/* ── Trigger bouton ──────────────────────────────────────── */
+.user-menu-wrap { position: relative; }
+
+.user-menu-trigger {
+  display: flex; align-items: center; gap: 8px;
+  background: transparent; border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 24px; padding: 4px 10px 4px 4px;
+  color: var(--text); font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem; font-weight: 500; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.user-menu-trigger:hover { border-color: var(--la-coral); background: rgba(255,255,255,0.04); }
+
+.user-menu-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-menu-chevron { font-size: 0.55rem; color: var(--muted); transition: transform 0.2s; }
+.user-menu-chevron.open { transform: rotate(180deg); }
+
+/* ── Dropdown ────────────────────────────────────────────── */
+.user-menu-dropdown {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  min-width: 220px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  z-index: 300; overflow: hidden;
+  animation: menuFadeIn 0.15s ease;
+}
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.user-menu-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg2);
+}
+.user-menu-username { font-weight: 700; font-size: 0.95rem; }
+.admin-badge-sm {
+  display: inline-block; background: rgba(245,166,35,0.15);
+  color: var(--la-gold); border: 1px solid rgba(245,166,35,0.3);
+  border-radius: 4px; font-size: 0.65rem; font-weight: 700;
+  padding: 1px 6px; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+.user-menu-divider { height: 1px; background: var(--border); margin: 0; }
+
+.user-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 12px 16px; background: transparent; border: none;
+  color: var(--text); font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem; text-align: left; cursor: pointer;
+  transition: background 0.1s;
+}
+.user-menu-item:hover { background: rgba(255,255,255,0.05); }
+.user-menu-logout { color: #ff6b6b; }
+.user-menu-logout:hover { background: rgba(255,107,107,0.08); }
+
+/* ── Avatar modal ────────────────────────────────────────── */
+.avatar-modal { max-width: 380px; }
+
+.avatar-tabs {
+  display: flex; gap: 4px; margin-bottom: 14px;
+  background: var(--bg2); border-radius: 10px; padding: 4px;
+}
+.avatar-tabs button {
+  flex: 1; padding: 7px 4px; background: transparent;
+  border: none; border-radius: 7px; color: var(--muted);
+  font-family: 'Outfit', sans-serif; font-size: 0.82rem;
+  font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.avatar-tabs button.active {
+  background: var(--card2); color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.avatar-tab-content { margin-bottom: 4px; }
+
+.avatar-upload-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 12px; background: var(--bg2);
+  border: 2px dashed var(--border); border-radius: 10px;
+  color: var(--text); font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem; font-weight: 500; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.avatar-upload-btn:hover { border-color: var(--la-coral); background: rgba(232,57,14,0.05); }
+
+.field-error { color: #ff6b6b; font-size: 0.82rem; margin-top: 4px; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .user-menu-name { display: none; }
+  .user-menu-trigger { padding: 4px; border: none; background: transparent; }
+  .user-menu-chevron { display: none; }
+  .user-menu-dropdown { right: -8px; min-width: 200px; }
+}
+
+/* ════════════════════════════════════════════════════════
+   V21 — Cropper + Drag & Drop
+   ════════════════════════════════════════════════════════ */
+
+/* ── Zone drag & drop ───────────────────────────────────── */
+.avatar-dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 24px 16px;
+  border: 2px dashed var(--border); border-radius: 12px;
+  background: var(--bg2); cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: center;
+}
+.avatar-dropzone:hover, .avatar-dropzone.dragging {
+  border-color: var(--la-coral);
+  background: rgba(232,57,14,0.06);
+}
+.dropzone-icon { font-size: 2rem; }
+.dropzone-text { font-size: 0.88rem; color: var(--text); }
+.dropzone-text strong { color: var(--la-coral); }
+.dropzone-sub  { font-size: 0.72rem; color: var(--muted); }
+
+/* ── Cropper ────────────────────────────────────────────── */
+.cropper-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.cropper-hint {
+  font-size: 0.78rem; color: var(--muted); text-align: center; margin: 0;
+}
+
+.cropper-circle-wrap {
+  position: relative; border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 0 0 3px var(--la-coral), 0 0 0 6px rgba(232,57,14,0.2);
+  cursor: grab;
+  flex-shrink: 0;
+}
+.cropper-circle-wrap:active { cursor: grabbing; }
+
+.cropper-canvas {
+  display: block;
+  border-radius: 50%;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* ── Slider zoom ────────────────────────────────────────── */
+.cropper-slider-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; max-width: 260px;
+}
+.cropper-slider {
+  flex: 1; height: 4px; border-radius: 2px;
+  accent-color: var(--la-coral);
+  cursor: pointer;
+}
+
+/* Mobile : modal plus large pour le cropper */
+@media (max-width: 640px) {
+  .avatar-modal { max-width: calc(100vw - 32px); }
+}
+
+/* ════════════════════════════════════════════════════════
+   V22 — Modal box + cropper fixes + color picker
+   ════════════════════════════════════════════════════════ */
+
+/* ── Modal box (utilisé par UserMenu modals) ─────────────── */
+.modal-box {
+  background: #1e1e2a;
+  border: 1.5px solid rgba(232,57,14,0.45);
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+}
+.modal-box h3 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem; letter-spacing: 1.5px; margin: 0;
+}
+
+/* ── Gros color pickers initiale ──────────────────────── */
+.color-pickers-row {
+  display: flex; gap: 20px; justify-content: center;
+  padding: 8px 0 4px;
+}
+.color-picker-group {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.color-picker-group label {
+  font-size: 0.8rem; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.big-color-picker {
+  width: 72px; height: 72px;
+  border: 2px solid var(--border); border-radius: 12px;
+  padding: 4px; background: var(--bg2);
+  cursor: pointer; transition: border-color 0.15s;
+}
+.big-color-picker:hover { border-color: var(--la-coral); }
+
+/* ════════════════════════════════════════════════════════
+   V27 — Boutons avatar modal + hover crop
+   ════════════════════════════════════════════════════════ */
+
+/* Bouton Annuler — neutre, texte simple */
+.avatar-btn-cancel {
+  flex: 1;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.avatar-btn-cancel:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+/* Bouton Enregistrer / Continuer — coloré, coins ronds */
+.avatar-btn-save {
+  flex: 1;
+  padding: 10px 16px;
+  background: var(--la-coral);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.avatar-btn-save:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+.avatar-btn-save:disabled { opacity: 0.45; cursor: default; }
+
+/* Hover sur l'avatar existant → affiche l'icône ciseau */
+.avatar-crop-hover { pointer-events: none; }
+div:hover > .avatar-crop-hover {
+  opacity: 1 !important;
+  background: rgba(0,0,0,0.5) !important;
 }

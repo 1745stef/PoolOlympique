@@ -5,6 +5,9 @@ import PicksPage from './pages/PicksPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import AdminPage from './pages/AdminPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import MyResultsPage from './pages/MyResultsPage';
+import UserMenu from './components/UserMenu';
+import MedalsPage from './pages/MedalsPage';
 import './styles.css';
 
 function AppContent() {
@@ -18,8 +21,6 @@ function AppContent() {
   );
 
   if (!user) return <AuthPage />;
-
-  // Forcer le changement de mot de passe
   if (user.must_change_password) return <ChangePasswordPage />;
 
   return (
@@ -32,24 +33,25 @@ function AppContent() {
             <span className="edition">Los Angeles 2028</span>
           </div>
         </div>
-        <div className="header-right">
-          <span className="welcome">Bonjour, <strong>{user.username}</strong></span>
-          <button className="btn-logout" onClick={logout}>Déconnexion</button>
-        </div>
+        <div className="header-right"><UserMenu /></div>
       </header>
 
       <nav className="app-nav">
-        <button className={tab === 'picks' ? 'active' : ''} onClick={() => setTab('picks')}>🎯 Mes pronostics</button>
+        <button className={tab === 'picks' ? 'active' : ''} onClick={() => setTab('picks')}>🎯 Pronostics</button>
+        <button className={tab === 'results' ? 'active' : ''} onClick={() => setTab('results')}>📊 Mes résultats</button>
         <button className={tab === 'leaderboard' ? 'active' : ''} onClick={() => setTab('leaderboard')}>🏆 Classement</button>
+        <button className={tab === 'medals' ? 'active' : ''} onClick={() => setTab('medals')}>🥇 Médailles</button>
         {user.is_admin && (
           <button className={`${tab === 'admin' ? 'active' : ''} admin-tab`} onClick={() => setTab('admin')}>🔑 Administration</button>
         )}
       </nav>
 
       <main className="app-main">
-        {tab === 'picks' && <PicksPage />}
+        {tab === 'picks'       && <PicksPage />}
+        {tab === 'results'     && <MyResultsPage />}
         {tab === 'leaderboard' && <LeaderboardPage />}
-        {tab === 'admin' && user.is_admin && <AdminPage />}
+        {tab === 'medals'      && <MedalsPage />}
+        {tab === 'admin'       && user.is_admin && <AdminPage />}
       </main>
     </div>
   );

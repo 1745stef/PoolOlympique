@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminApi, groupsApi, olympicApi } from '../lib/api';
+import { getCountryName } from '../data/translations';
+import { LA28_DISCIPLINES } from '../data/disciplines';
 
 const MEDALS = [
   { key: 'gold',   label: 'Or',     icon: '🥇', points: 5, color: '#d4a017' },
@@ -34,9 +36,9 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    Promise.all([olympicApi.getDisciplines(), olympicApi.getCountries(), adminApi.getResults(), adminApi.getUsers(), groupsApi.getAll()])
-      .then(([discs, ctries, res, usrs, grps]) => {
-        setDisciplines(discs);
+    Promise.all([olympicApi.getCountries(), adminApi.getResults(), adminApi.getUsers(), groupsApi.getAll()])
+      .then(([ctries, res, usrs, grps]) => {
+        setDisciplines(LA28_DISCIPLINES);
         setCountries(ctries);
         const map = {};
         res.forEach(r => { map[r.discipline_id] = r; });
@@ -62,11 +64,11 @@ export default function AdminPage() {
   const handlePickMedal = async (disciplineId, medalKey, countryId) => {
     const current = results[disciplineId] || {};
     const podium = { gold: current.gold_country_id || null, silver: current.silver_country_id || null, bronze: current.bronze_country_id || null };
+    // Toggle : cliquer sur le même pays/médaille l'efface
     if (podium[medalKey] === countryId) { podium[medalKey] = null; }
     else {
-      if (podium.gold === countryId && medalKey !== 'gold') podium.gold = null;
-      if (podium.silver === countryId && medalKey !== 'silver') podium.silver = null;
-      if (podium.bronze === countryId && medalKey !== 'bronze') podium.bronze = null;
+      // Un pays peut apparaître sur plusieurs marches du podium (points additifs)
+      // On ne retire plus automatiquement le pays des autres médailles
       podium[medalKey] = countryId;
     }
     if (!podium.gold && !podium.silver && !podium.bronze) {
@@ -74,7 +76,6 @@ export default function AdminPage() {
       try { await adminApi.deleteResult(disciplineId); setResults(prev => { const n = { ...prev }; delete n[disciplineId]; return n; }); notify('Résultat effacé', 'info'); }
       catch (e) { notify(e.message, 'error'); } finally { setSaving(null); }
     } else {
-      if (!podium.gold) { notify("L'or est obligatoire", 'error'); return; }
       await savePodium(disciplineId, podium);
     }
     setEditing(null);
@@ -90,7 +91,6 @@ export default function AdminPage() {
       catch (e) { notify(e.message, 'error'); } finally { setSaving(null); }
       return;
     }
-    if (!podium.gold) { notify("L'or est obligatoire", 'error'); return; }
     await savePodium(disciplineId, podium);
   };
 
@@ -172,8 +172,9 @@ export default function AdminPage() {
   };
 
   const getCountry = id => countries.find(c => c.id === id);
+  const getCountryFR = id => { const c = countries.find(x => x.id === id); return getCountryName(id, c?.name); };
   const completedCount = Object.keys(results).length;
-  const filteredDisciplines = disciplines.filter(d => d.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredDisciplines = disciplines.filter(d => d.nameFR.toLowerCase().includes(search.toLowerCase()) || d.sport.toLowerCase().includes(search.toLowerCase()));
   const filteredCountries = countries.filter(c => (c.name || c.id).toLowerCase().includes(countrySearch.toLowerCase()));
 
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Chargement...</p></div>;
@@ -253,7 +254,7 @@ export default function AdminPage() {
                   <div className="result-card-header">
                     <div className="disc-info">
                       {disc.pictogram_url && <img src={disc.pictogram_url} alt={disc.name} className="disc-picto-sm" />}
-                      <span className="disc-name-sm">{disc.name}</span>
+                      <span className="disc-name-sm">{disc.nameFR}</span>
                     </div>
                     {isSaving && <span className="saving-indicator">⏳</span>}
                   </div>
@@ -268,7 +269,7 @@ export default function AdminPage() {
                           {countryId ? (
                             <div className="slot-country">
                               {country?.flag_url && <img src={country.flag_url} alt={country.name} className="slot-flag" />}
-                              <span className="slot-name">{country?.name || countryId}</span>
+                              <span className="slot-name">{getCountryFR(countryId)}</span>
                               <button className="slot-clear" onClick={() => clearMedal(disc.id, medal.key)} disabled={isSaving}>×</button>
                             </div>
                           ) : (
@@ -281,7 +282,7 @@ export default function AdminPage() {
                                 {filteredCountries.map(c => (
                                   <button key={c.id} className={`pick-country-btn ${podium[medal.key] === c.id ? 'selected' : ''}`} onClick={() => handlePickMedal(disc.id, medal.key, c.id)} disabled={isSaving}>
                                     {c.flag_url ? <img src={c.flag_url} alt={c.name} className="flag-sm" /> : <span>🏳</span>}
-                                    <span>{c.name || c.id}</span>
+                                    <span>{getCountryName(c.id, c.name)}</span>
                                   </button>
                                 ))}
                               </div>
