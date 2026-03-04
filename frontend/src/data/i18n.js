@@ -91,8 +91,6 @@ const T = {
 
   // Cropper
   cropTitle:   { 'fr-fr':'✂️ Recadrer la photo', 'fr-ca':'✂️ Recadrer la photo', 'en-us':'✂️ Crop Photo', 'en-gb':'✂️ Crop Photo', 'en-ca':'✂️ Crop Photo' },
-  cropHint:    { 'fr-fr':'Fais glisser · molette ou pincer pour zoomer', 'fr-ca':'Fais glisser · molette ou pincer pour zoomer', 'en-us':'Drag · scroll or pinch to zoom', 'en-gb':'Drag · scroll or pinch to zoom', 'en-ca':'Drag · scroll or pinch to zoom' },
-  cropConfirm: { 'fr-fr':'✓ Utiliser cette photo', 'fr-ca':'✓ Utiliser cette photo', 'en-us':'✓ Use This Photo', 'en-gb':'✓ Use This Photo', 'en-ca':'✓ Use This Photo' },
 
   // Picks Page
   myPicksTitle:     { 'fr-fr':'Mes pronostics', 'fr-ca':'Mes pronostics', 'en-us':'My Picks', 'en-gb':'My Picks', 'en-ca':'My Picks' },
@@ -118,7 +116,6 @@ const T = {
   tableColPts:    { 'fr-fr':'Pts', 'fr-ca':'Pts', 'en-us':'Pts', 'en-gb':'Pts', 'en-ca':'Pts' },
   tableEmpty:     { 'fr-fr':'Aucun pronostic pour ce filtre.', 'fr-ca':'Aucun pronostic pour ce filtre.', 'en-us':'No picks for this filter.', 'en-gb':'No picks for this filter.', 'en-ca':'No picks for this filter.' },
   resultMissed:   { 'fr-fr':'✗ Raté', 'fr-ca':'✗ Raté', 'en-us':'✗ Missed', 'en-gb':'✗ Missed', 'en-ca':'✗ Missed' },
-  dayLabel:       { 'fr-fr':'Jour {day} — {date}', 'fr-ca':'Jour {day} — {date}', 'en-us':'Day {day} — {date}', 'en-gb':'Day {day} — {date}', 'en-ca':'Day {day} — {date}' },
   today:          { 'fr-fr':"Aujourd'hui", 'fr-ca':"Aujourd'hui", 'en-us':'Today', 'en-gb':'Today', 'en-ca':'Today' },
   daySummary:     { 'fr-fr':'{picked} pronostics', 'fr-ca':'{picked} pronostics', 'en-us':'{picked} picks', 'en-gb':'{picked} picks', 'en-ca':'{picked} picks' },
   daySummaryScored:{ 'fr-fr':'· {scored} corrects · {pts} pts', 'fr-ca':'· {scored} corrects · {pts} pts', 'en-us':'· {scored} correct · {pts} pts', 'en-gb':'· {scored} correct · {pts} pts', 'en-ca':'· {scored} correct · {pts} pts' },
@@ -154,10 +151,7 @@ const T = {
   // Admin
   adminPodiumsEntered:{ 'fr-fr':'Podiums saisis', 'fr-ca':'Podiums saisis', 'en-us':'Podiums Entered', 'en-gb':'Podiums Entered', 'en-ca':'Podiums Entered' },
   adminRemaining:    { 'fr-fr':'Restants', 'fr-ca':'Restants', 'en-us':'Remaining', 'en-gb':'Remaining', 'en-ca':'Remaining' },
-  adminParticipants: { 'fr-fr':'Participants', 'fr-ca':'Participants', 'en-us':'Participants', 'en-gb':'Participants', 'en-ca':'Participants' },
   adminCompleted:    { 'fr-fr':'% complété', 'fr-ca':'% complété', 'en-us':'% completed', 'en-gb':'% completed', 'en-ca':'% completed' },
-  adminScale:        { 'fr-fr':'Barème :', 'fr-ca':'Barème :', 'en-us':'Scoring:', 'en-gb':'Scoring:', 'en-ca':'Scoring:' },
-  adminScaleNote:    { 'fr-fr':'• Plusieurs médailles pour un même pays → les points de chaque médaille s\'additionnent', 'fr-ca':'• Plusieurs médailles pour un même pays → les points de chaque médaille s\'additionnent', 'en-us':'• Multiple medals for the same country → points from each medal are added together', 'en-gb':'• Multiple medals for the same country → points from each medal are added together', 'en-ca':'• Multiple medals for the same country → points from each medal are added together' },
   adminTabResults:   { 'fr-fr':'🥇 Résultats ({done}/{total})', 'fr-ca':'🥇 Résultats ({done}/{total})', 'en-us':'🥇 Results ({done}/{total})', 'en-gb':'🥇 Results ({done}/{total})', 'en-ca':'🥇 Results ({done}/{total})' },
   adminTabUsers:     { 'fr-fr':'👥 Joueurs ({count})', 'fr-ca':'👥 Joueurs ({count})', 'en-us':'👥 Players ({count})', 'en-gb':'👥 Players ({count})', 'en-ca':'👥 Players ({count})' },
   adminTabGroups:    { 'fr-fr':'🏟 Groupes ({count})', 'fr-ca':'🏟 Groupes ({count})', 'en-us':'🏟 Groups ({count})', 'en-gb':'🏟 Groups ({count})', 'en-ca':'🏟 Groups ({count})' },
@@ -170,10 +164,7 @@ const T = {
   adminUsersRegistered:{ 'fr-fr':'Inscription', 'fr-ca':'Inscription', 'en-us':'Registered', 'en-gb':'Registered', 'en-ca':'Registered' },
   adminUsersRole:    { 'fr-fr':'Rôle', 'fr-ca':'Rôle', 'en-us':'Role', 'en-gb':'Role', 'en-ca':'Role' },
   adminUsersActions: { 'fr-fr':'Actions', 'fr-ca':'Actions', 'en-us':'Actions', 'en-gb':'Actions', 'en-ca':'Actions' },
-  adminRoleAdmin:    { 'fr-fr':'🔑 Admin', 'fr-ca':'🔑 Admin', 'en-us':'🔑 Admin', 'en-gb':'🔑 Admin', 'en-ca':'🔑 Admin' },
   adminRolePlayer:   { 'fr-fr':'👤 Joueur', 'fr-ca':'👤 Joueur', 'en-us':'👤 Player', 'en-gb':'👤 Player', 'en-ca':'👤 Player' },
-  adminPromote:      { 'fr-fr':'Promouvoir', 'fr-ca':'Promouvoir', 'en-us':'Promote', 'en-gb':'Promote', 'en-ca':'Promote' },
-  adminRevoke:       { 'fr-fr':'Révoquer', 'fr-ca':'Révoquer', 'en-us':'Revoke', 'en-gb':'Revoke', 'en-ca':'Revoke' },
   adminDeleteUserConfirm:{ 'fr-fr':'Supprimer {username} ? Tous ses pronostics seront effacés.', 'fr-ca':'Supprimer {username} ? Tous ses pronostics seront effacés.', 'en-us':'Delete {username}? All their picks will be erased.', 'en-gb':'Delete {username}? All their picks will be erased.', 'en-ca':'Delete {username}? All their picks will be erased.' },
   adminDeletedUser:  { 'fr-fr':'{username} supprimé', 'fr-ca':'{username} supprimé', 'en-us':'{username} deleted', 'en-gb':'{username} deleted', 'en-ca':'{username} deleted' },
   adminRoleUpdated:  { 'fr-fr':'Rôle mis à jour', 'fr-ca':'Rôle mis à jour', 'en-us':'Role updated', 'en-gb':'Role updated', 'en-ca':'Role updated' },
@@ -208,7 +199,6 @@ const T = {
   ruleMultiMedalTitle:  { 'fr-fr':'Plusieurs médailles pour un même pays', 'fr-ca':'Plusieurs médailles pour un même pays', 'en-us':'Multiple medals for the same country', 'en-gb':'Multiple medals for the same country', 'en-ca':'Multiple medals for the same country' },
   ruleMultiMedalDesc:   { 'fr-fr':'Si ton pays gagne plusieurs médailles dans la même discipline, les points de chaque médaille s\'additionnent. Ex: or + bronze = 5 + 1 = 6 pts.', 'fr-ca':'Si ton pays gagne plusieurs médailles dans la même discipline, les points de chaque médaille s\'additionnent. Ex: or + bronze = 5 + 1 = 6 pts.', 'en-us':'If your country wins multiple medals in the same event, points from each medal are added together. Ex: gold + bronze = 5 + 1 = 6 pts.', 'en-gb':'If your country wins multiple medals in the same event, points from each medal are added together. Ex: gold + bronze = 5 + 1 = 6 pts.', 'en-ca':'If your country wins multiple medals in the same event, points from each medal are added together. Ex: gold + bronze = 5 + 1 = 6 pts.' },
   ruleExampleTitle:     { 'fr-fr':'Exemple concret', 'fr-ca':'Exemple concret', 'en-us':'Concrete example', 'en-gb':'Concrete example', 'en-ca':'Concrete example' },
-  ruleExampleDesc:      { 'fr-fr':"Tu choisis un pays en natation 100m. Ce pays remporte l'or et le bronze → tu gagnes 5 + 1 = 6 pts.", 'fr-ca':"Tu choisis un pays en natation 100m. Ce pays remporte l'or et le bronze → tu gagnes 5 + 1 = 6 pts.", 'en-us':"You pick a country in 100m swimming. That country wins gold and bronze → you earn 5 + 1 = 6 pts.", 'en-gb':"You pick a country in 100m swimming. That country wins gold and bronze → you earn 5 + 1 = 6 pts.", 'en-ca':"You pick a country in 100m swimming. That country wins gold and bronze → you earn 5 + 1 = 6 pts." },
   ruleExampleDescDynamic: { 'fr-fr':"Tu choisis {country} en natation 100m. {country} remporte l'or et le bronze → tu gagnes 5 + 1 = 6 pts.", 'fr-ca':"Tu choisis {country} en natation 100m. {country} remporte l'or et le bronze → tu gagnes 5 + 1 = 6 pts.", 'en-us':'You pick {country} in 100m swimming. {country} wins gold and bronze → you earn 5 + 1 = 6 pts.', 'en-gb':'You pick {country} in 100m swimming. {country} wins gold and bronze → you earn 5 + 1 = 6 pts.', 'en-ca':'You pick {country} in 100m swimming. {country} wins gold and bronze → you earn 5 + 1 = 6 pts.' },
 
   // Rôles
