@@ -549,3 +549,69 @@ app.delete('/groups/:id/members/:user_id', requireLevel(3), async (req, res) => 
 // ─── Start ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🏅 API démarrée sur http://localhost:${PORT}`));
+
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+// GET /chat/rooms — salons accessibles par l'utilisateur
+app.get('/chat/rooms', authMiddleware, async (req, res) => {
+  const level = req.user.role_level ?? ROLE_PLAYER;
+  const rooms = [{ id: 'general', name: 'Général', type: 'general' }];
+
+  // Groupes accessibles
+  const { data: groups } = await supabase.from('groups')
+    .select('id, name, group_members(user_id)')
+    .order('name');
+
+  (groups || []).forEach(g => {
+    const isMember = (g.group_members || []).some(m => m.user_id === req.user.id);
+    const isAdmin  = level <= 2;
+    if (isAdmin || isMember) {
+      rooms.push({ id: `group_${g.id}`, name: g.name, type: 'group' });
+    }
+  });
+
+  res.json(rooms);
+});
+
+// POST /chat/:room_id/messages — envoyer un message
+app.post('/chat/:room_id/messages', authMiddleware, async (req, res) => {
+  const { content } = req.body;
+  if (!content || !content.trim()) return res.status(400).json({ error: 'Message vide' });
+  if (content.length > 1000) return res.status(400).json({ error: 'Message trop long (max 1000 car.)' });
+
+  const room_id = req.params.room_id;
+
+  // Vérifier accès au salon
+  if (room_id !== 'general') {
+    const level = req.user.role_level ?? ROLE_PLAYER;
+    if (room_id.startsWith('group_') && level > 2) {
+      const groupId = room_id.replace('group_', '');
+      const { data: membership } = await supabase.from('group_members')
+        .select('user_id').eq('group_id', groupId).eq('user_id', req.user.id).single();
+      // Vérifier aussi si créateur
+      const { data: grp } = await supabase.from('groups')
+        .select('created_by').eq('id', groupId).single();
+      if (!membership && grp?.created_by !== req.user.id) {
+        return res.status(403).json({ error: 'Accès refusé à ce salon' });
+      }
+    }
+  }
+
+  const { data, error } = await supabase.from('messages').insert({
+    room_id,
+    user_id: req.user.id,
+    username: req.user.username,
+    content: content.trim(),
+  }).select().single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// DELETE /chat/messages/:id — soft delete (admin seulement)
+app.delete('/chat/messages/:id', requireLevel(2), async (req, res) => {
+  const { error } = await supabase.from('messages')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});

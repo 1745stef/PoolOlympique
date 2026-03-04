@@ -96,3 +96,10 @@ async function fetchAllPages(endpoint) {
 export const olympicApi = {
   getCountries: () => fetchAllPages('countries'),
 };
+
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+export const chatApi = {
+  getRooms:      ()                    => apiFetch('/chat/rooms'),
+  sendMessage:   (room_id, content)    => apiFetch(`/chat/${room_id}/messages`, { method: 'POST', body: JSON.stringify({ content }) }),
+  deleteMessage: (id)                  => apiFetch(`/chat/messages/${id}`, { method: 'DELETE' }),
+};

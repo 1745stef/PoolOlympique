@@ -48,6 +48,16 @@ const T = {
   navLeaderboard: { 'fr-fr':'🏆 Classement', 'fr-ca':'🏆 Classement', 'en-us':'🏆 Leaderboard', 'en-gb':'🏆 Leaderboard', 'en-ca':'🏆 Leaderboard' },
   navMedals:      { 'fr-fr':'🥇 Médailles', 'fr-ca':'🥇 Médailles', 'en-us':'🥇 Medals', 'en-gb':'🥇 Medals', 'en-ca':'🥇 Medals' },
   navAdmin:       { 'fr-fr':'🔑 Administration', 'fr-ca':'🔑 Administration', 'en-us':'🔑 Admin', 'en-gb':'🔑 Admin', 'en-ca':'🔑 Admin' },
+  // Chat
+  navChat:           { 'fr-fr':'💬 Chat', 'fr-ca':'💬 Chat', 'en-us':'💬 Chat', 'en-gb':'💬 Chat', 'en-ca':'💬 Chat' },
+  chatRooms:         { 'fr-fr':'Salons', 'fr-ca':'Salons', 'en-us':'Rooms', 'en-gb':'Rooms', 'en-ca':'Rooms' },
+  chatGeneral:       { 'fr-fr':'Général', 'fr-ca':'Général', 'en-us':'General', 'en-gb':'General', 'en-ca':'General' },
+  chatEmpty:         { 'fr-fr':'Aucun message pour l\'instant. Soyez le premier !', 'fr-ca':'Aucun message pour l\'instant. Soyez le premier !', 'en-us':'No messages yet. Be the first!', 'en-gb':'No messages yet. Be the first!', 'en-ca':'No messages yet. Be the first!' },
+  chatNoRooms:       { 'fr-fr':'Aucun salon disponible', 'fr-ca':'Aucun salon disponible', 'en-us':'No rooms available', 'en-gb':'No rooms available', 'en-ca':'No rooms available' },
+  chatPlaceholder:   { 'fr-fr':'Écrire un message... (Entrée pour envoyer)', 'fr-ca':'Écrire un message... (Entrée pour envoyer)', 'en-us':'Write a message... (Enter to send)', 'en-gb':'Write a message... (Enter to send)', 'en-ca':'Write a message... (Enter to send)' },
+  chatDelete:        { 'fr-fr':'Supprimer le message', 'fr-ca':'Supprimer le message', 'en-us':'Delete message', 'en-gb':'Delete message', 'en-ca':'Delete message' },
+  chatDeleteConfirm: { 'fr-fr':'Supprimer ce message ?', 'fr-ca':'Supprimer ce message ?', 'en-us':'Delete this message?', 'en-gb':'Delete this message?', 'en-ca':'Delete this message?' },
+
   appTitle:       { 'fr-fr':'Pool Olympique', 'fr-ca':'Pool Olympique', 'en-us':'Olympic Pool', 'en-gb':'Olympic Pool', 'en-ca':'Olympic Pool' },
   appEdition:     { 'fr-fr':'Los Angeles 2028', 'fr-ca':'Los Angeles 2028', 'en-us':'Los Angeles 2028', 'en-gb':'Los Angeles 2028', 'en-ca':'Los Angeles 2028' },
 

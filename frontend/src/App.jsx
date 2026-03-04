@@ -10,6 +10,7 @@ import ChangePasswordPage from './pages/ChangePasswordPage';
 import MyResultsPage from './pages/MyResultsPage';
 import UserMenu from './components/UserMenu';
 import MedalsPage from './pages/MedalsPage';
+import ChatPage from './pages/ChatPage';
 import InactivityWarning from './components/InactivityWarning';
 import { settingsApi, authApi } from './lib/api';
 import './styles.css';
@@ -97,17 +98,19 @@ function AppContent() {
         <button className={tab === 'results' ? 'active' : ''} onClick={() => setTab('results')}>{t('navResults')}</button>
         <button className={tab === 'leaderboard' ? 'active' : ''} onClick={() => setTab('leaderboard')}>{t('navLeaderboard')}</button>
         <button className={tab === 'medals' ? 'active' : ''} onClick={() => setTab('medals')}>{t('navMedals')}</button>
+        <button className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>{t('navChat')}</button>
         {getMyLevel(user) <= 3 && (
           <button className={`${tab === 'admin' ? 'active' : ''} admin-tab`} onClick={() => setTab('admin')}>{t('navAdmin')}</button>
         )}
         </nav>
       </div>
 
-      <main className="app-main">
+      <main className={`app-main${tab === 'chat' ? ' chat-active' : ''}`}>
         {tab === 'picks'       && <PicksPage />}
         {tab === 'results'     && <MyResultsPage />}
         {tab === 'leaderboard' && <LeaderboardPage />}
         {tab === 'medals'      && <MedalsPage />}
+        {tab === 'chat'        && <ChatPage />}
         {tab === 'admin'       && getMyLevel(user) <= 3 && <AdminPage onSettingsChange={setSettings} />}
       </main>
     </div>
