@@ -57,6 +57,10 @@ const T = {
   chatPlaceholder:   { 'fr-fr':'Écrire un message... (Entrée pour envoyer)', 'fr-ca':'Écrire un message... (Entrée pour envoyer)', 'en-us':'Write a message... (Enter to send)', 'en-gb':'Write a message... (Enter to send)', 'en-ca':'Write a message... (Enter to send)' },
   chatDelete:        { 'fr-fr':'Supprimer le message', 'fr-ca':'Supprimer le message', 'en-us':'Delete message', 'en-gb':'Delete message', 'en-ca':'Delete message' },
   chatDeleteConfirm: { 'fr-fr':'Supprimer ce message ?', 'fr-ca':'Supprimer ce message ?', 'en-us':'Delete this message?', 'en-gb':'Delete this message?', 'en-ca':'Delete this message?' },
+  mentionAll:       { 'fr-fr':'tous', 'fr-ca':'tous', 'en-us':'all', 'en-gb':'all', 'en-ca':'all' },
+  adminModeOn:        { 'fr-fr':'Mode Admin actif — cliquer pour désactiver', 'fr-ca':'Mode Admin actif — cliquer pour désactiver', 'en-us':'Admin mode on — click to disable', 'en-gb':'Admin mode on — click to disable', 'en-ca':'Admin mode on — click to disable' },
+  adminModeOff:       { 'fr-fr':'Activer le mode Admin', 'fr-ca':'Activer le mode Admin', 'en-us':'Enable admin mode', 'en-gb':'Enable admin mode', 'en-ca':'Enable admin mode' },
+  adminModePlaceholder: { 'fr-fr':'Message Admin (visible par tous)...', 'fr-ca':'Message Admin (visible par tous)...', 'en-us':'Admin message (visible to all)...', 'en-gb':'Admin message (visible to all)...', 'en-ca':'Admin message (visible to all)...' },
 
   appTitle:       { 'fr-fr':'Pool Olympique', 'fr-ca':'Pool Olympique', 'en-us':'Olympic Pool', 'en-gb':'Olympic Pool', 'en-ca':'Olympic Pool' },
   appEdition:     { 'fr-fr':'Los Angeles 2028', 'fr-ca':'Los Angeles 2028', 'en-us':'Los Angeles 2028', 'en-gb':'Los Angeles 2028', 'en-ca':'Los Angeles 2028' },

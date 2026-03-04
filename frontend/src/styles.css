@@ -112,7 +112,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
 .app-nav button.active { color: var(--la-coral); border-bottom-color: var(--la-coral); }
 .app-nav button.admin-tab.active { color: var(--la-gold); border-bottom-color: var(--la-gold); }
 
-.app-main { flex: 1; overflow-y: auto; padding: 24px; max-width: 900px; width: 100%; margin: 0 auto; box-sizing: border-box; }
+.app-main { flex: 1; overflow-y: auto; padding: 24px; max-width: 900px; width: 100%; margin: 0 auto; box-sizing: border-box; scrollbar-width: none; }
+.app-main::-webkit-scrollbar { display: none; }
 .app-main.chat-active { padding: 0; max-width: 100%; overflow: hidden; }
 
 /* ── Picks Page ───────────────────────────────────────── */
@@ -1506,7 +1507,7 @@ div:hover > .avatar-crop-hover {
 .msg-author { font-size: 0.72rem; color: var(--muted); margin-bottom: 3px; padding: 0 10px; }
 .msg-bubble { display: flex; align-items: flex-end; gap: 6px; padding: 8px 12px; border-radius: 16px; position: relative; }
 .chat-msg.mine  .msg-bubble { background: var(--la-coral); border-bottom-right-radius: 4px; }
-.chat-msg.theirs .msg-bubble { background: var(--card); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.chat-msg.theirs .msg-bubble { background: #2a2a2a; border: 1px solid rgba(255,255,255,0.1); border-bottom-left-radius: 4px; color: #f0f0f0; }
 .msg-content { font-size: 0.9rem; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
 .chat-msg.mine .msg-content { color: white; }
 .msg-time { font-size: 0.65rem; opacity: 0.7; flex-shrink: 0; margin-left: 4px; }
@@ -1532,3 +1533,96 @@ div:hover > .avatar-crop-hover {
   .chat-room-btn.active { border-right: none; border-bottom: 3px solid var(--la-coral); }
   .chat-msg { max-width: 85%; }
 }
+
+/* ─── @Mentions ──────────────────────────────────────────────────────────── */
+.mention { color: var(--la-coral); font-weight: 600; }
+.chat-msg.mine .mention { color: var(--la-gold); font-weight: 700; text-decoration: none; }
+.mention-me { background: rgba(255,107,53,0.2); border-radius: 4px; padding: 0 3px; color: var(--la-gold); }
+.chat-msg.mentioned .msg-bubble { border: 1px solid rgba(255,107,53,0.4); }
+.chat-msg.mentioned.theirs .msg-bubble { background: rgba(255,107,53,0.08); }
+
+.chat-input-area { position: relative; flex-shrink: 0; }
+
+.mention-dropdown { position: absolute; bottom: 100%; left: 20px; right: 20px; background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 -4px 20px rgba(0,0,0,0.3); margin-bottom: 4px; z-index: 10; }
+.mention-option { display: flex; align-items: center; gap: 8px; padding: 9px 14px; background: transparent; border: none; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.88rem; cursor: pointer; width: 100%; text-align: left; transition: background 0.1s; }
+.mention-option:hover, .mention-option.active { background: rgba(255,107,53,0.12); }
+.mention-at { color: var(--la-coral); font-weight: 700; }
+.mention-name { color: var(--la-white); }
+.mention-all { color: #fff; background: rgba(245,166,35,0.25); border-radius: 4px; padding: 0 4px; font-weight: 700; }
+.chat-msg.mine .mention-all { background: rgba(212,160,23,0.3); color: var(--la-gold); }
+.mention-all-option { border-top: 1px solid var(--border); }
+.mention-all-badge { margin-left: auto; font-size: 0.68rem; color: var(--muted); font-style: italic; }
+
+/* ─── Avatar + Admin messages ────────────────────────────────────────────── */
+.msg-author-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; padding-left: 36px; }
+.msg-admin-badge { font-size: 0.75rem; }
+.msg-with-avatar { display: flex; align-items: flex-end; gap: 6px; }
+.msg-avatar-slot { width: 28px; flex-shrink: 0; }
+.msg-avatar-slot .avatar-letter { width: 28px !important; height: 28px !important; font-size: 0.7rem !important; }
+.msg-avatar-slot .avatar-img { width: 28px !important; height: 28px !important; border-radius: 50%; object-fit: cover; }
+.chat-msg.grouped { margin-top: 2px; }
+.chat-msg.mine .msg-with-avatar { justify-content: flex-end; }
+
+/* Message admin — bordure gauche colorée + fond légèrement teinté */
+.chat-msg.admin-msg.theirs .msg-bubble {
+  border-left: 3px solid var(--la-gold);
+  background: rgba(212,160,23,0.18);
+  color: #fff;
+}
+.chat-msg.admin-msg.theirs .msg-author { color: var(--la-gold); font-weight: 600; }
+.chat-msg.admin-msg.theirs .msg-content { color: #fff; font-weight: 500; }
+.chat-msg.admin-msg.theirs .msg-time { color: rgba(255,255,255,0.6); }
+
+/* ─── Admin mode toggle + message ────────────────────────────────────────── */
+.admin-mode-btn { background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 10px; color: var(--muted); font-size: 1rem; width: 42px; height: 42px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+.admin-mode-btn:hover { background: rgba(212,160,23,0.15); border-color: var(--la-gold); }
+.admin-mode-btn.active { background: rgba(212,160,23,0.2); border-color: var(--la-gold); box-shadow: 0 0 8px rgba(212,160,23,0.3); }
+
+.chat-input.admin-mode-input { border-color: var(--la-gold); background: rgba(212,160,23,0.06); }
+
+/* Message admin envoyé avec le toggle */
+.chat-msg.admin-msg.mine .msg-bubble { background: rgba(212,160,23,0.85); }
+.chat-msg.admin-msg.mine .msg-content { color: #1a1a1a; font-weight: 500; }
+.chat-msg.admin-msg.mine .msg-time { color: rgba(0,0,0,0.5); }
+.chat-msg.admin-msg.mine .mention { color: var(--la-coral); }
+
+/* ─── Réactions emoji ────────────────────────────────────────────────────── */
+.msg-bubble-wrap { display: flex; flex-direction: column; position: relative; }
+
+.msg-actions { display: flex; align-items: center; gap: 4px; margin-left: 6px; flex-shrink: 0; }
+.msg-react-btn { background: transparent; border: none; cursor: pointer; font-size: 0.8rem; opacity: 0; transition: opacity 0.15s; padding: 0 2px; line-height: 1; }
+.msg-bubble:hover .msg-react-btn { opacity: 0.6; }
+.msg-react-btn:hover { opacity: 1 !important; }
+
+.emoji-picker-wrap { position: absolute; z-index: 100; box-shadow: 0 4px 24px rgba(0,0,0,0.5); border-radius: 12px; overflow: hidden; bottom: 100%; margin-bottom: 4px; }
+.emoji-picker-wrap.picker-right { left: 0; }
+.emoji-picker-wrap.picker-left  { right: 0; }
+
+.msg-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.msg-reactions.reactions-right { justify-content: flex-start; }
+.msg-reactions.reactions-left  { justify-content: flex-end; }
+.reaction-chip { display: flex; align-items: center; gap: 3px; background: rgba(255,255,255,0.07); border: 1px solid var(--border); border-radius: 12px; padding: 2px 8px; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; color: var(--text); }
+.reaction-chip:hover { background: rgba(255,255,255,0.12); }
+.reaction-chip.mine { background: rgba(255,107,53,0.2); border-color: var(--la-coral); }
+.reaction-chip span { font-size: 0.75rem; color: var(--muted); }
+
+/* ─── Emoji picker dans l'input ─────────────────────────────────────────── */
+.emoji-input-btn { background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 10px; color: var(--muted); font-size: 1rem; width: 42px; height: 42px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+.emoji-input-btn:hover { background: rgba(255,255,255,0.1); }
+.input-emoji-picker { position: absolute; bottom: 100%; left: 20px; z-index: 100; box-shadow: 0 -4px 24px rgba(0,0,0,0.5); border-radius: 12px; overflow: hidden; margin-bottom: 4px; }
+
+/* ─── Message emoji seul (sans texte) ───────────────────────────────────── */
+.chat-msg.emoji-only .msg-bubble { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 4px; }
+.chat-msg.emoji-only .msg-content { font-size: 2rem; line-height: 1.2; }
+.chat-msg.emoji-only .msg-time { color: var(--muted); }
+
+/* ─── Giphy ──────────────────────────────────────────────────────────────── */
+.gif-btn { font-size: 0.75rem; font-weight: 700; color: var(--la-gold); letter-spacing: 0.5px; }
+.giphy-panel { position: absolute; bottom: 100%; left: 20px; z-index: 100; background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 -4px 24px rgba(0,0,0,0.5); margin-bottom: 4px; width: 336px; }
+.giphy-search { width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.05); border: none; border-bottom: 1px solid var(--border); color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.9rem; outline: none; box-sizing: border-box; }
+.giphy-search::placeholder { color: var(--muted); }
+.giphy-grid { padding: 8px; max-height: 280px; overflow-y: auto; }
+.giphy-attribution { text-align: right; padding: 4px 8px; font-size: 0.65rem; color: var(--muted); }
+
+.msg-gif { max-width: 220px; border-radius: 10px; display: block; }
+.gif-bubble { background: transparent !important; border: none !important; padding: 2px !important; }

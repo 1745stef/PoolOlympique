@@ -516,6 +516,9 @@ app.delete('/groups/:id', requireLevel(3), async (req, res) => {
     const isMember = (grp?.group_members || []).some(m => m.user_id === req.user.id);
     if (!grp || (grp.created_by !== req.user.id && !isMember)) return res.status(403).json({ error: 'Vous ne pouvez supprimer que vos propres groupes' });
   }
+  // Supprimer les messages + réactions du salon du groupe (réactions en cascade via FK)
+  await supabase.from('messages').delete().eq('room_id', `group_${req.params.id}`);
+
   const { error } = await supabase.from('groups').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json({ success: true });
@@ -574,7 +577,7 @@ app.get('/chat/rooms', authMiddleware, async (req, res) => {
 
 // POST /chat/:room_id/messages — envoyer un message
 app.post('/chat/:room_id/messages', authMiddleware, async (req, res) => {
-  const { content } = req.body;
+  const { content, is_admin_msg, is_gif } = req.body;
   if (!content || !content.trim()) return res.status(400).json({ error: 'Message vide' });
   if (content.length > 1000) return res.status(400).json({ error: 'Message trop long (max 1000 car.)' });
 
@@ -596,11 +599,23 @@ app.post('/chat/:room_id/messages', authMiddleware, async (req, res) => {
     }
   }
 
+  // Récupérer avatar + role depuis la DB (fraîcheur garantie)
+  const { data: profile } = await supabase.from('users')
+    .select('avatar_url, avatar_type, avatar_color, avatar_text_color, role_id, roles(level)')
+    .eq('id', req.user.id).single();
+
   const { data, error } = await supabase.from('messages').insert({
     room_id,
-    user_id: req.user.id,
-    username: req.user.username,
-    content: content.trim(),
+    user_id:            req.user.id,
+    username:           req.user.username,
+    content:            content.trim(),
+    role_level:         profile?.roles?.level ?? req.user.role_level ?? 99,
+    is_admin_msg:       !!(is_admin_msg && (profile?.roles?.level ?? 99) <= 2),
+    is_gif:             !!is_gif,
+    avatar_url:         profile?.avatar_url || null,
+    avatar_type:        profile?.avatar_type || 'letter',
+    avatar_color:       profile?.avatar_color || '#000000',
+    avatar_text_color:  profile?.avatar_text_color || '#FFFFFF',
   }).select().single();
 
   if (error) return res.status(500).json({ error: error.message });
@@ -614,4 +629,49 @@ app.delete('/chat/messages/:id', requireLevel(2), async (req, res) => {
     .eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true });
+});
+
+// ─── Réactions ────────────────────────────────────────────────────────────────
+// POST /chat/messages/:id/reactions — toggle une réaction
+app.post('/chat/messages/:id/reactions', authMiddleware, async (req, res) => {
+  const { emoji } = req.body;
+  if (!emoji) return res.status(400).json({ error: 'Emoji requis' });
+  if (['🖕','🖕🏻','🖕🏼','🖕🏽','🖕🏾','🖕🏿'].includes(emoji)) return res.status(400).json({ error: 'Emoji non autorisé' });
+
+  const message_id = req.params.id;
+  const user_id = req.user.id;
+
+  // Vérifier si la réaction existe déjà
+  const { data: existing } = await supabase.from('reactions')
+    .select('id').eq('message_id', message_id).eq('user_id', user_id).eq('emoji', emoji).single();
+
+  if (existing) {
+    // Supprimer (toggle off)
+    await supabase.from('reactions').delete().eq('id', existing.id);
+    return res.json({ action: 'removed' });
+  } else {
+    // Ajouter (toggle on)
+    await supabase.from('reactions').insert({ message_id, user_id, emoji });
+    return res.json({ action: 'added' });
+  }
+});
+
+// GET /chat/messages/reactions?room_id=xxx — toutes les réactions d'un salon
+app.get('/chat/messages/reactions', authMiddleware, async (req, res) => {
+  const { room_id } = req.query;
+  if (!room_id) return res.status(400).json({ error: 'room_id requis' });
+
+  // D'abord récupérer les IDs des messages du salon
+  const { data: msgs } = await supabase.from('messages')
+    .select('id').eq('room_id', room_id).is('deleted_at', null);
+
+  if (!msgs || msgs.length === 0) return res.json([]);
+
+  const msgIds = msgs.map(m => m.id);
+  const { data, error } = await supabase.from('reactions')
+    .select('id, message_id, user_id, emoji')
+    .in('message_id', msgIds);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
 });
