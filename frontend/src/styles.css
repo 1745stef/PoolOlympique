@@ -1393,3 +1393,45 @@ div:hover > .avatar-crop-hover {
 .auth-card {
   position: relative;
 }
+
+/* ─── Admin Settings ──────────────────────────────────────────────────────── */
+.admin-settings { max-width: 520px; }
+.settings-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 32px; }
+.settings-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 2px; color: var(--la-white); margin-bottom: 6px; }
+.settings-desc { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; line-height: 1.5; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.settings-label { color: var(--la-white); font-size: 0.9rem; font-weight: 500; }
+.settings-fields { transition: opacity 0.2s; }
+.settings-fields.disabled { opacity: 0.4; pointer-events: none; }
+.settings-input-group { display: flex; align-items: center; gap: 8px; }
+.settings-input { width: 80px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; color: var(--la-white); font-family: 'Outfit', sans-serif; font-size: 1rem; padding: 7px 12px; text-align: center; }
+.settings-input:focus { outline: none; border-color: var(--la-coral); }
+.settings-unit { color: var(--muted); font-size: 0.85rem; }
+.toggle-btn { padding: 7px 18px; border-radius: 20px; font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1.5px solid; transition: all 0.2s; }
+.toggle-btn.on  { background: rgba(0,180,100,0.15); border-color: rgba(0,180,100,0.5); color: #4ddc8e; }
+.toggle-btn.off { background: rgba(255,255,255,0.05); border-color: var(--border); color: var(--muted); }
+.settings-footer { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+.settings-saved { color: #4ddc8e; font-size: 0.85rem; font-weight: 500; }
+
+/* ─── Inactivity Warning Modal ────────────────────────────────────────────── */
+.inactivity-modal { text-align: center; }
+.inactivity-icon { font-size: 2.5rem; margin-bottom: 12px; }
+.inactivity-modal h3 { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 2px; color: var(--la-white); margin-bottom: 8px; }
+.inactivity-modal p { color: var(--muted); font-size: 0.9rem; margin-bottom: 0; }
+.inactivity-countdown { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; color: var(--la-coral); letter-spacing: 3px; margin: 16px 0; line-height: 1; }
+
+/* ─── Role badges ─────────────────────────────────────────────────────────── */
+.role-badge { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 10px; text-transform: uppercase; }
+.role-badge.superadmin { background: rgba(255,50,50,0.2);   border: 1px solid rgba(255,50,50,0.5);   color: #ff6666; }
+.role-badge.admin      { background: rgba(245,166,35,0.2);  border: 1px solid rgba(245,166,35,0.4);  color: var(--la-gold-l); }
+.role-badge.captain    { background: rgba(0,180,180,0.2);   border: 1px solid rgba(0,180,180,0.4);   color: #4ddce0; }
+.role-badge.player     { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--muted); }
+
+/* Row highlight par niveau */
+.user-row.role-level-1 { border-left: 3px solid #ff6666; }
+.user-row.role-level-2 { border-left: 3px solid var(--la-gold); }
+.user-row.role-level-3 { border-left: 3px solid #4ddce0; }
+
+/* Role select */
+.role-select { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; color: var(--la-white); font-family: 'Outfit', sans-serif; font-size: 0.78rem; padding: 5px 8px; cursor: pointer; }
+.role-select:focus { outline: none; border-color: var(--la-coral); }

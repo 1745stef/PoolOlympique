@@ -196,7 +196,35 @@ const T = {
   adminTempBadge:    { 'fr-fr':'MDP TEMPORAIRE', 'fr-ca':'MDP TEMPORAIRE', 'en-us':'TEMP PASSWORD', 'en-gb':'TEMP PASSWORD', 'en-ca':'TEMP PASSWORD' },
   adminSearchDiscipline:{ 'fr-fr':'🔍 Rechercher une discipline...', 'fr-ca':'🔍 Rechercher une discipline...', 'en-us':'🔍 Search a discipline...', 'en-gb':'🔍 Search a discipline...', 'en-ca':'🔍 Search a discipline...' },
 
+
+
+  // Rôles
+  role_superadmin: { 'fr-fr':'Super Admin', 'fr-ca':'Super Admin', 'en-us':'Super Admin', 'en-gb':'Super Admin', 'en-ca':'Super Admin' },
+  role_admin:      { 'fr-fr':'Admin',       'fr-ca':'Admin',       'en-us':'Admin',       'en-gb':'Admin',       'en-ca':'Admin' },
+  role_captain:    { 'fr-fr':'Capitaine',   'fr-ca':'Capitaine',   'en-us':'Captain',     'en-gb':'Captain',     'en-ca':'Captain' },
+  adminRoleUpdated:{ 'fr-fr':'Rôle mis à jour', 'fr-ca':'Rôle mis à jour', 'en-us':'Role updated', 'en-gb':'Role updated', 'en-ca':'Role updated' },
+
+  // Inactivity timer
+  inactivityTitle:   { 'fr-fr':'Session inactive', 'fr-ca':'Session inactive', 'en-us':'Inactive Session', 'en-gb':'Inactive Session', 'en-ca':'Inactive Session' },
+  inactivityMessage: { 'fr-fr':'Vous serez déconnecté automatiquement dans :', 'fr-ca':'Vous serez déconnecté automatiquement dans :', 'en-us':'You will be automatically logged out in:', 'en-gb':'You will be automatically logged out in:', 'en-ca':'You will be automatically logged out in:' },
+  inactivityStay:    { 'fr-fr':'Je suis là !', 'fr-ca':'Je suis là !', 'en-us':"I'm here!", 'en-gb':"I'm here!", 'en-ca':"I'm here!" },
+  inactivityLogout:  { 'fr-fr':'Se déconnecter', 'fr-ca':'Se déconnecter', 'en-us':'Log Out', 'en-gb':'Log Out', 'en-ca':'Log Out' },
+
+  // Admin Settings tab
+  adminTabSettings:  { 'fr-fr':'⚙️ Paramètres', 'fr-ca':'⚙️ Paramètres', 'en-us':'⚙️ Settings', 'en-gb':'⚙️ Settings', 'en-ca':'⚙️ Settings' },
+  settingsInactivityTitle: { 'fr-fr':'Déconnexion par inactivité', 'fr-ca':'Déconnexion par inactivité', 'en-us':'Inactivity Logout', 'en-gb':'Inactivity Logout', 'en-ca':'Inactivity Logout' },
+  settingsInactivityDesc:  { 'fr-fr':'Déconnecte automatiquement les utilisateurs après une période d\'inactivité.', 'fr-ca':'Déconnecte automatiquement les utilisateurs après une période d\'inactivité.', 'en-us':'Automatically log out users after a period of inactivity.', 'en-gb':'Automatically log out users after a period of inactivity.', 'en-ca':'Automatically log out users after a period of inactivity.' },
+  settingsEnabled:   { 'fr-fr':'Activé', 'fr-ca':'Activé', 'en-us':'Enabled', 'en-gb':'Enabled', 'en-ca':'Enabled' },
+  settingsOn:        { 'fr-fr':'✓ Activé', 'fr-ca':'✓ Activé', 'en-us':'✓ On', 'en-gb':'✓ On', 'en-ca':'✓ On' },
+  settingsOff:       { 'fr-fr':'Désactivé', 'fr-ca':'Désactivé', 'en-us':'Off', 'en-gb':'Off', 'en-ca':'Off' },
+  settingsTimeout:   { 'fr-fr':'Délai d\'inactivité', 'fr-ca':'Délai d\'inactivité', 'en-us':'Inactivity timeout', 'en-gb':'Inactivity timeout', 'en-ca':'Inactivity timeout' },
+  settingsWarning:   { 'fr-fr':'Avertissement avant', 'fr-ca':'Avertissement avant', 'en-us':'Warning before', 'en-gb':'Warning before', 'en-ca':'Warning before' },
+  settingsMinutes:   { 'fr-fr':'min', 'fr-ca':'min', 'en-us':'min', 'en-gb':'min', 'en-ca':'min' },
+  settingsSave:      { 'fr-fr':'Enregistrer', 'fr-ca':'Sauvegarder', 'en-us':'Save', 'en-gb':'Save', 'en-ca':'Save' },
+  settingsSaved:     { 'fr-fr':'Paramètres sauvegardés !', 'fr-ca':'Paramètres sauvegardés !', 'en-us':'Settings saved!', 'en-gb':'Settings saved!', 'en-ca':'Settings saved!' },
+
   // Language picker
+
   languageModalTitle:{ 'fr-fr':'🌐 Choisir la langue', 'fr-ca':'🌐 Choisir la langue', 'en-us':'🌐 Choose Language', 'en-gb':'🌐 Choose Language', 'en-ca':'🌐 Choose Language' },
   languageSaving:    { 'fr-fr':'Sauvegarde...', 'fr-ca':'Sauvegarde...', 'en-us':'Saving...', 'en-gb':'Saving...', 'en-ca':'Saving...' },
   languageSaved:     { 'fr-fr':'✓ Langue mise à jour !', 'fr-ca':'✓ Langue mise à jour !', 'en-us':'✓ Language updated!', 'en-gb':'✓ Language updated!', 'en-ca':'✓ Language updated!' },

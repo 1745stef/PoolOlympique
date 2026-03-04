@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { LanguageProvider, useLang } from './hooks/useLanguage';
+import { useInactivityTimer } from './hooks/useInactivityTimer';
 import AuthPage from './pages/AuthPage';
 import PicksPage from './pages/PicksPage';
 import LeaderboardPage from './pages/LeaderboardPage';
@@ -9,12 +10,46 @@ import ChangePasswordPage from './pages/ChangePasswordPage';
 import MyResultsPage from './pages/MyResultsPage';
 import UserMenu from './components/UserMenu';
 import MedalsPage from './pages/MedalsPage';
+import InactivityWarning from './components/InactivityWarning';
+import { settingsApi, authApi } from './lib/api';
 import './styles.css';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { t } = useLang();
   const [tab, setTab] = useState('picks');
+  const [showWarning, setShowWarning] = useState(false);
+  const [settings, setSettings] = useState({ inactivity_enabled: false, inactivity_timeout: 30, inactivity_warning: 2 });
+
+  // Charger les settings au démarrage
+  useEffect(() => {
+    settingsApi.get()
+      .then(s => setSettings(s))
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    setShowWarning(false);
+    try { await authApi.logout(); } catch {}
+    logout();
+  }, [logout]);
+
+  const handleWarn = useCallback(() => {
+    setShowWarning(true);
+  }, []);
+
+  const handleStayConnected = useCallback(() => {
+    setShowWarning(false);
+    resetTimers();
+  }, []);
+
+  const { resetTimers } = useInactivityTimer({
+    enabled: !!user && settings.inactivity_enabled,
+    timeoutMin: settings.inactivity_timeout,
+    warningMin: settings.inactivity_warning,
+    onWarn: handleWarn,
+    onLogout: handleLogout,
+  });
 
   if (loading) return (
     <div className="splash">
@@ -27,6 +62,14 @@ function AppContent() {
 
   return (
     <div className="app">
+      {showWarning && (
+        <InactivityWarning
+          warningMin={settings.inactivity_warning}
+          onStayConnected={handleStayConnected}
+          onLogout={handleLogout}
+        />
+      )}
+
       <header className="app-header">
         <div className="header-left">
           <img src="/la28-logo.png" alt="LA28" className="header-logo" />
@@ -53,7 +96,7 @@ function AppContent() {
         {tab === 'results'     && <MyResultsPage />}
         {tab === 'leaderboard' && <LeaderboardPage />}
         {tab === 'medals'      && <MedalsPage />}
-        {tab === 'admin'       && user.is_admin && <AdminPage />}
+        {tab === 'admin'       && user.is_admin && <AdminPage onSettingsChange={setSettings} />}
       </main>
     </div>
   );
