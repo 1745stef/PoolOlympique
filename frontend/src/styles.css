@@ -106,7 +106,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
 .btn-logout:hover { background: rgba(232,57,14,0.2); }
 
 /* ── Nav ──────────────────────────────────────────────── */
-.app-nav { background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; padding: 0 24px; position: sticky; top: 57px; z-index: 99; }
+.app-nav { background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 0 24px; position: sticky; top: 57px; z-index: 99; scrollbar-width: none; }
+.app-nav::-webkit-scrollbar { display: none; }
 .app-nav button { background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--muted); padding: 14px 20px; font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-bottom: -1px; }
 .app-nav button.active { color: var(--la-coral); border-bottom-color: var(--la-coral); }
 .app-nav button.admin-tab.active { color: var(--la-gold); border-bottom-color: var(--la-gold); }
@@ -613,7 +614,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
   .btn-logout { padding: 5px 10px; font-size: 0.75rem; }
 
   /* Nav */
-  .app-nav { padding: 0 4px; overflow-x: auto; }
+  .app-nav { padding: 0 4px; overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; }
   .app-nav button { padding: 11px 12px; font-size: 0.82rem; white-space: nowrap; }
 
   /* Main */

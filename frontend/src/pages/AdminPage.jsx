@@ -19,7 +19,22 @@ export default function AdminPage({ onSettingsChange }) {
     { ...MEDALS_BASE[2], label: t('bronze'), icon: '🥉' },
   ];
 
-  const [tab, setTab]               = useState('results');
+  const myLevel = (() => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return 99;
+      // base64url → base64 standard
+      const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(base64));
+      return payload.role_level ?? (payload.is_admin ? 2 : 99);
+    } catch { return 99; }
+  })();
+
+  const isSuperAdmin = myLevel <= 1;
+  const isAdmin      = myLevel <= 2;
+  const isCaptain    = myLevel <= 3;
+
+  const [tab, setTab]               = useState(myLevel <= 2 ? 'results' : 'groups');
   const [disciplines, setDisciplines] = useState([]);
   const [countries, setCountries]   = useState([]);
   const [results, setResults]       = useState({});
@@ -41,20 +56,6 @@ export default function AdminPage({ onSettingsChange }) {
   const [settingsSaved, setSettingsSaved] = useState(false);
 
   // Rôle de l'utilisateur courant depuis le JWT (injecté via useAuth → App)
-  const myLevel = (() => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return 99;
-      // base64url → base64 standard
-      const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-      const payload = JSON.parse(atob(base64));
-      return payload.role_level ?? (payload.is_admin ? 2 : 99);
-    } catch { return 99; }
-  })();
-
-  const isSuperAdmin = myLevel <= 1;
-  const isAdmin      = myLevel <= 2;
-  const isCaptain    = myLevel <= 3;
 
   const notify = (msg, type = 'success') => {
     setNotification({ msg, type });
@@ -64,18 +65,31 @@ export default function AdminPage({ onSettingsChange }) {
   useEffect(() => {
     setDisciplines(LA28_DISCIPLINES);
 
-    const backendCalls = [adminApi.getResults(), adminApi.getUsers(), groupsApi.getAll(), adminApi.getRoles()];
+    // Appels selon le niveau
+    // Tous les niveaux ont besoin de users (pour ajouter des membres aux groupes)
+    const backendCalls = [groupsApi.getAll(), adminApi.getUsers()];
+    if (isAdmin) backendCalls.push(adminApi.getResults(), adminApi.getRoles());
     if (isSuperAdmin) backendCalls.push(adminApi.getSettings());
 
     Promise.all(backendCalls)
-      .then(([res, usrs, grps, rls, s]) => {
-        const map = {};
-        res.forEach(r => { map[r.discipline_id] = r; });
-        setResults(map);
-        setUsers(usrs);
+      .then((results_arr) => {
+        let idx = 0;
+        const grps = results_arr[idx++];
+        const usrs = results_arr[idx++];
         setGroups(grps);
-        setRoles(rls);
-        if (s) setSettings(s);
+        setUsers(usrs);
+        if (isAdmin) {
+          const res = results_arr[idx++];
+          const rls = results_arr[idx++];
+          const map = {};
+          res.forEach(r => { map[r.discipline_id] = r; });
+          setResults(map);
+          setRoles(rls);
+        }
+        if (isSuperAdmin) {
+          const s = results_arr[idx++];
+          if (s) setSettings(s);
+        }
       })
       .catch(e => console.error('Erreur chargement admin:', e))
       .finally(() => setLoading(false));

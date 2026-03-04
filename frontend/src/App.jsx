@@ -14,6 +14,16 @@ import InactivityWarning from './components/InactivityWarning';
 import { settingsApi, authApi } from './lib/api';
 import './styles.css';
 
+function getMyLevel(user) {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return 99;
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(base64));
+    return payload.role_level ?? (payload.is_admin ? 2 : 99);
+  } catch { return 99; }
+}
+
 function AppContent() {
   const { user, loading, logout } = useAuth();
   const { t } = useLang();
@@ -86,7 +96,7 @@ function AppContent() {
         <button className={tab === 'results' ? 'active' : ''} onClick={() => setTab('results')}>{t('navResults')}</button>
         <button className={tab === 'leaderboard' ? 'active' : ''} onClick={() => setTab('leaderboard')}>{t('navLeaderboard')}</button>
         <button className={tab === 'medals' ? 'active' : ''} onClick={() => setTab('medals')}>{t('navMedals')}</button>
-        {user.is_admin && (
+        {getMyLevel(user) <= 3 && (
           <button className={`${tab === 'admin' ? 'active' : ''} admin-tab`} onClick={() => setTab('admin')}>{t('navAdmin')}</button>
         )}
       </nav>
@@ -96,7 +106,7 @@ function AppContent() {
         {tab === 'results'     && <MyResultsPage />}
         {tab === 'leaderboard' && <LeaderboardPage />}
         {tab === 'medals'      && <MedalsPage />}
-        {tab === 'admin'       && user.is_admin && <AdminPage onSettingsChange={setSettings} />}
+        {tab === 'admin'       && getMyLevel(user) <= 3 && <AdminPage onSettingsChange={setSettings} />}
       </main>
     </div>
   );

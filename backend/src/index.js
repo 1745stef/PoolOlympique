@@ -483,7 +483,11 @@ app.get('/groups', authMiddleware, async (req, res) => {
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   const level = req.user.role_level ?? ROLE_PLAYER;
   if (level <= 2) return res.json(data);
-  const userGroups = data.filter(g => (g.group_members || []).some(m => m.user_id === req.user.id));
+  // Capitaine : groupes créés par lui OU dont il est membre
+  const userGroups = data.filter(g =>
+    g.created_by === req.user.id ||
+    (g.group_members || []).some(m => m.user_id === req.user.id)
+  );
   res.json(userGroups);
 });
 
@@ -496,12 +500,25 @@ app.post('/groups', requireLevel(3), async (req, res) => {
 });
 
 app.delete('/groups/:id', requireLevel(3), async (req, res) => {
+  const level = req.user.role_level ?? ROLE_PLAYER;
+  if (level >= 3) {
+    // Capitaine : vérifier qu'il est propriétaire du groupe
+    const { data: grp } = await supabase.from('groups').select('created_by, group_members(user_id)').eq('id', req.params.id).single();
+    const isMember = (grp?.group_members || []).some(m => m.user_id === req.user.id);
+    if (!grp || (grp.created_by !== req.user.id && !isMember)) return res.status(403).json({ error: 'Vous ne pouvez supprimer que vos propres groupes' });
+  }
   const { error } = await supabase.from('groups').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json({ success: true });
 });
 
 app.post('/groups/:id/members', requireLevel(3), async (req, res) => {
+  const level = req.user.role_level ?? ROLE_PLAYER;
+  if (level >= 3) {
+    const { data: grp } = await supabase.from('groups').select('created_by, group_members(user_id)').eq('id', req.params.id).single();
+    const isMember = (grp?.group_members || []).some(m => m.user_id === req.user.id);
+    if (!grp || (grp.created_by !== req.user.id && !isMember)) return res.status(403).json({ error: 'Vous ne pouvez gérer que vos propres groupes' });
+  }
   const { user_id } = req.body;
   const { error } = await supabase.from('group_members').upsert({ group_id: req.params.id, user_id }, { onConflict: 'group_id,user_id' });
   if (error) return res.status(500).json({ error: error?.message || String(error) });
@@ -509,6 +526,12 @@ app.post('/groups/:id/members', requireLevel(3), async (req, res) => {
 });
 
 app.delete('/groups/:id/members/:user_id', requireLevel(3), async (req, res) => {
+  const level = req.user.role_level ?? ROLE_PLAYER;
+  if (level >= 3) {
+    const { data: grp } = await supabase.from('groups').select('created_by, group_members(user_id)').eq('id', req.params.id).single();
+    const isMember = (grp?.group_members || []).some(m => m.user_id === req.user.id);
+    if (!grp || (grp.created_by !== req.user.id && !isMember)) return res.status(403).json({ error: 'Vous ne pouvez gérer que vos propres groupes' });
+  }
   const { error } = await supabase.from('group_members').delete().eq('group_id', req.params.id).eq('user_id', req.params.user_id);
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json({ success: true });
