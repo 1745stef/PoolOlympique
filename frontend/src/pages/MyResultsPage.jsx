@@ -3,12 +3,13 @@ import { leaderboardApi, olympicApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useLang } from '../hooks/useLanguage';
 import { getCountryNameLang, getDisciplineNameLang } from '../data/i18n';
-import { LA28_DISCIPLINES, getTodayGameDay, getDefaultDay, GAME_DATES, DISPLAY_DAYS } from '../data/disciplines';
+import { LA28_DISCIPLINES, getTodayGameDay, getDefaultDay, GAME_DATES, DISPLAY_DAYS, getDayLabel } from '../data/disciplines';
 
 const DayNav = memo(({ selectedDay, todayDay, pickMap, onDayClick }) => {
   const navRef    = useRef(null);
   const activeRef = useRef(null);
 
+  // Scroll au montage uniquement — [] = jamais redéclenché
   useEffect(() => {
     if (activeRef.current && navRef.current) {
       activeRef.current.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'start' });
@@ -16,7 +17,7 @@ const DayNav = memo(({ selectedDay, todayDay, pickMap, onDayClick }) => {
         navRef.current.scrollLeft = Math.max(0, navRef.current.scrollLeft - 16);
       }
     }
-  }, [selectedDay]);
+  }, []);
 
   return (
     <div className="day-nav" ref={navRef}>
@@ -33,7 +34,7 @@ const DayNav = memo(({ selectedDay, todayDay, pickMap, onDayClick }) => {
             className={`day-btn ${isSelected ? 'active' : ''} ${hasPoints ? 'has-points' : ''} ${isToday ? 'is-today' : ''}`}
             onClick={() => onDayClick(day)}
           >
-            <span className="day-num">J{day}</span>
+            <span className="day-num">{getDayLabel(day)}</span>
             <span className="day-date-mini">{GAME_DATES[String(day)]?.replace(' juillet', '/07')}</span>
             {hasPick && !isSelected && <span className="day-pick-dot" />}
           </button>
@@ -201,7 +202,7 @@ export default function MyResultsPage() {
       </div>
 
       <div className={`day-header ${todayDay === selectedDay ? 'today' : ''}`} style={{ marginTop: 24 }}>
-        <span className="day-label">{t('dayLabel', { day: selectedDay, date: GAME_DATES[String(selectedDay)] })}</span>
+        <span className="day-label">{getDayLabel(selectedDay)} <span className="day-label-date">{GAME_DATES[String(selectedDay)]}</span></span>
         {todayDay !== null && todayDay === selectedDay && (
           <span className="today-badge">{t('today')}</span>
         )}

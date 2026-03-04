@@ -533,6 +533,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
 }
 .day-header.today { border-bottom-color: var(--la-coral); }
 .day-label { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; color: var(--la-white); }
+.day-label-date { font-family: 'Outfit', sans-serif; font-size: 0.8rem; color: var(--muted); font-weight: 400; margin-left: 6px; letter-spacing: 0; }
 .day-full-date { font-size: 0.85rem; color: var(--muted); }
 .today-badge {
   margin-left: auto; background: rgba(232,57,14,0.15);

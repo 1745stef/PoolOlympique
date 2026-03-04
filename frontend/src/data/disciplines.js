@@ -27,6 +27,14 @@ export const GAME_DATES = {
   '19': '30 juillet',
 };
 
+// Conversion jour interne (1-19) → label officiel LA28 (J-2 à J16)
+// Jour 1=12 juil=J-2, Jour 2=13 juil=J-1, Jour 3=14 juil=J0, Jour 4=J1...
+export function getDayLabel(day) {
+  const offset = day - 3; // jour 3 = J0
+  if (offset < 0) return `J${offset}`;   // J-2, J-1
+  return `J${offset}`;                    // J0, J1... J16
+}
+
 export function isPickLocked(disciplineId) {
   const disc = LA28_DISCIPLINES.find(d => d.id === disciplineId);
   if (!disc) return false;
