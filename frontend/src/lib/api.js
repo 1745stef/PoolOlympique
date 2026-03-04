@@ -34,6 +34,7 @@ export const authApi = {
   updateAvatar:      (fields)      => apiFetch('/auth/avatar',             { method: 'PUT',  body: JSON.stringify(fields) }),
   uploadAvatar:      (base64, contentType, originalBase64, originalContentType) => apiFetch('/auth/avatar/upload', { method: 'POST', body: JSON.stringify({ base64, contentType, originalBase64, originalContentType }) }),
   fetchImageAsBase64:(url) => apiFetch('/auth/avatar/fetch-image', { method: 'POST', body: JSON.stringify({ url }) }),
+  setLanguage:       (language) => apiFetch('/auth/language', { method: 'PUT', body: JSON.stringify({ language }) }),
 };
 
 export const picksApi = {

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { authApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
+import { useLang } from '../hooks/useLanguage';
 
 export default function ChangePasswordPage() {
   const { updateUser } = useAuth();
+  const { t } = useLang();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPwd, setShowPwd] = useState(false);
@@ -27,8 +29,8 @@ export default function ChangePasswordPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (password !== confirm) return setError('Les mots de passe ne correspondent pas');
-    if (password.length < 6) return setError('Minimum 6 caractères');
+    if (password !== confirm) return setError(t('passwordMismatch'));
+    if (password.length < 6) return setError(t('passwordTooShort'));
     setLoading(true);
     try {
       const data = await authApi.changePassword(password);
@@ -46,15 +48,15 @@ export default function ChangePasswordPage() {
       <div className="auth-card">
         <div className="auth-logo">
           <img src="/la28-logo.png" alt="LA28" className="auth-la28-logo" />
-          <h1>Nouveau mot de passe</h1>
+          <h1>{t('newPassword')}</h1>
           <p className="auth-subtitle change-pwd-notice">
-            🔒 Mot de passe temporaire détecté.<br/>
-            Choisis un nouveau mot de passe pour continuer.
+            {t('tempPasswordDetected')}<br/>
+            {t('chooseNewPassword')}
           </p>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="field">
-            <label>Nouveau mot de passe</label>
+            <label>{t('newPassword')}</label>
             <div className="pwd-wrapper">
               <input type={showPwd ? 'text' : 'password'} value={password}
                 onChange={e => setPassword(e.target.value)} placeholder="••••••••" required autoFocus />
@@ -64,7 +66,7 @@ export default function ChangePasswordPage() {
             </div>
           </div>
           <div className="field">
-            <label>Confirmer le mot de passe</label>
+            <label>{t('confirmPassword')}</label>
             <div className="pwd-wrapper">
               <input type={showConfirm ? 'text' : 'password'} value={confirm}
                 onChange={e => setConfirm(e.target.value)} placeholder="••••••••" required />
@@ -75,7 +77,7 @@ export default function ChangePasswordPage() {
           </div>
           {error && <p className="error">{error}</p>}
           <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? '...' : 'Enregistrer mon mot de passe'}
+            {loading ? '...' : t('savePassword')}
           </button>
         </form>
       </div>

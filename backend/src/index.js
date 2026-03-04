@@ -35,9 +35,14 @@ function adminMiddleware(req, res, next) {
 
 function makeToken(user) {
   return jwt.sign(
-    { id: user.id, username: user.username, is_admin: user.is_admin || false, must_change_password: user.must_change_password || false, favorite_country: user.favorite_country || null, avatar_url: user.avatar_url || null, avatar_original_url: user.avatar_original_url || null, avatar_color: user.avatar_color || '#000000', avatar_text_color: user.avatar_text_color || '#FFFFFF' },
+    { id: user.id, username: user.username, is_admin: user.is_admin || false, must_change_password: user.must_change_password || false, favorite_country: user.favorite_country || null, avatar_url: user.avatar_url || null, avatar_original_url: user.avatar_original_url || null, avatar_url_external: user.avatar_url_external || null, avatar_type: user.avatar_type || 'letter', avatar_color: user.avatar_color || '#000000', avatar_text_color: user.avatar_text_color || '#FFFFFF', language: user.language || 'fr-fr' },
     JWT_SECRET, { expiresIn: '7d' }
   );
+}
+
+function safeUser(user) {
+  const { password_hash, temp_password_hash, ...safe } = user;
+  return safe;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -53,7 +58,7 @@ app.post('/auth/register', async (req, res) => {
   const { data, error } = await supabase.from('users').insert({ username: username.toLowerCase(), password_hash: hash }).select().single();
   if (error) return res.status(500).json({ error: 'Erreur serveur' });
 
-  res.json({ token: makeToken(data), user: { id: data.id, username: data.username, is_admin: false, must_change_password: false } });
+  res.json({ token: makeToken(data), user: safeUser(data) });
 });
 
 app.post('/auth/login', async (req, res) => {
@@ -69,19 +74,19 @@ app.post('/auth/login', async (req, res) => {
       await supabase.from('users').update({ must_change_password: true }).eq('id', user.id);
       user.must_change_password = true;
       const token = makeToken(user);
-      return res.json({ token, user: { id: user.id, username: user.username, is_admin: user.is_admin, must_change_password: true } });
+      return res.json({ token, user: safeUser(user) });
     }
   }
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) return res.status(401).json({ error: 'Identifiants invalides' });
 
-  res.json({ token: makeToken(user), user: { id: user.id, username: user.username, is_admin: user.is_admin, must_change_password: user.must_change_password || false } });
+  res.json({ token: makeToken(user), user: safeUser(user) });
 });
 
 app.get('/auth/me', authMiddleware, async (req, res) => {
   const { data, error } = await supabase.from('users')
-    .select('id, username, is_admin, must_change_password, favorite_country, avatar_url, avatar_original_url, avatar_color, avatar_text_color')
+    .select('id, username, is_admin, must_change_password, favorite_country, avatar_url, avatar_original_url, avatar_url_external, avatar_type, avatar_color, avatar_text_color, language')
     .eq('id', req.user.id).single();
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   const token = makeToken(data);
@@ -99,7 +104,7 @@ app.post('/auth/change-password', authMiddleware, async (req, res) => {
     .eq('id', req.user.id).select().single();
   if (error) return res.status(500).json({ error: error?.message || String(error) });
 
-  res.json({ token: makeToken(data), user: { id: data.id, username: data.username, is_admin: data.is_admin, must_change_password: false } });
+  res.json({ token: makeToken(data), user: safeUser(data) });
 });
 
 // ─── Préférence pays favori ──────────────────────────────────────────────────
@@ -114,11 +119,13 @@ app.put('/auth/favorite-country', authMiddleware, async (req, res) => {
 
 // ─── Avatar ──────────────────────────────────────────────────────────────────
 app.put('/auth/avatar', authMiddleware, async (req, res) => {
-  const { avatar_url, avatar_color, avatar_text_color } = req.body;
+  const { avatar_url, avatar_color, avatar_text_color, avatar_type, avatar_url_external } = req.body;
   const updates = {};
-  if (avatar_url !== undefined)        updates.avatar_url = avatar_url || null;
-  if (avatar_color !== undefined)      updates.avatar_color = avatar_color || '#000000';
-  if (avatar_text_color !== undefined) updates.avatar_text_color = avatar_text_color || '#FFFFFF';
+  if (avatar_url !== undefined)          updates.avatar_url = avatar_url || null;
+  if (avatar_color !== undefined)        updates.avatar_color = avatar_color || '#000000';
+  if (avatar_text_color !== undefined)   updates.avatar_text_color = avatar_text_color || '#FFFFFF';
+  if (avatar_type !== undefined)         updates.avatar_type = avatar_type;
+  if (avatar_url_external !== undefined) updates.avatar_url_external = avatar_url_external || null;
   const { data, error } = await supabase.from('users')
     .update(updates).eq('id', req.user.id).select().single();
   if (error) return res.status(500).json({ error: error?.message || String(error) });
@@ -145,7 +152,7 @@ app.post('/auth/avatar/upload', authMiddleware, async (req, res) => {
   const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(cropPath);
   const avatar_url = urlData.publicUrl + '?t=' + Date.now();
 
-  const updates = { avatar_url };
+  const updates = { avatar_url, avatar_type: 'upload' };
 
   // Sauvegarder l'image originale (avant crop) — pour pouvoir recropper plus tard
   if (originalBase64 && originalContentType) {
@@ -350,6 +357,18 @@ app.delete('/groups/:id/members/:user_id', adminMiddleware, async (req, res) => 
   const { error } = await supabase.from('group_members').delete().eq('group_id', req.params.id).eq('user_id', req.params.user_id);
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json({ success: true });
+});
+
+// ─── Préférence de langue ──────────────────────────────────────────────────────
+app.put('/auth/language', authMiddleware, async (req, res) => {
+  const { language } = req.body;
+  const VALID_LANGS = ['fr-fr', 'fr-ca', 'en-us', 'en-gb', 'en-ca'];
+  if (!language || !VALID_LANGS.includes(language)) return res.status(400).json({ error: 'Langue invalide' });
+  const { data, error } = await supabase.from('users')
+    .update({ language })
+    .eq('id', req.user.id).select().single();
+  if (error) return res.status(500).json({ error: error?.message || String(error) });
+  res.json({ token: makeToken(data), user: safeUser(data) });
 });
 
 // ─── Proxy image pour éviter le CORS dans le cropper ────────────────────────

@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { picksApi, olympicApi } from '../lib/api';
-import { getCountryName } from '../data/translations';
+import { useLang } from '../hooks/useLanguage';
+import { getDisciplineNameLang, getCountryNameLang } from '../data/i18n';
 import { LA28_DISCIPLINES, isPickLocked, GAME_DATES } from '../data/disciplines';
 
 const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 export default function PicksPage() {
+  const { t, lang } = useLang();
   const [picks, setPicks] = useState({});
   const [openDisc, setOpenDisc] = useState(null);
   const [allCountries, setAllCountries] = useState([]);
@@ -54,13 +56,14 @@ export default function PicksPage() {
   const circumference = 2 * Math.PI * 32;
 
   const filtered = LA28_DISCIPLINES.filter(d => {
-    const matchSearch = d.nameFR.toLowerCase().includes(search.toLowerCase())
+    const discName = getDisciplineNameLang(d, lang);
+    const matchSearch = discName.toLowerCase().includes(search.toLowerCase())
       || d.sport.toLowerCase().includes(search.toLowerCase());
     const matchFilter = !filterUnpicked || !picks[d.id];
     return matchSearch && matchFilter;
   });
 
-  if (loading) return <div className="loading">Chargement...</div>;
+  if (loading) return <div className="loading">{t('loading')}</div>;
 
   return (
     <div className="picks-page">
@@ -76,33 +79,34 @@ export default function PicksPage() {
           <div className="progress-text">{pct}%</div>
         </div>
         <div>
-          <h2>Mes pronostics</h2>
-          <p className="lock-info">🎯 {pickedCount} / {total} disciplines complétées</p>
+          <h2>{t('myPicksTitle')}</h2>
+          <p className="lock-info">🎯 {t('picksCompleted', { picked: pickedCount, total })}</p>
         </div>
       </div>
 
       <div className="picks-toolbar">
         <input className="search-input" style={{ flex: 1 }} type="text"
-          placeholder="🔍 Rechercher une discipline..."
+          placeholder={t('searchDiscipline')}
           value={search} onChange={e => setSearch(e.target.value)} />
         <button
           className={`btn-filter-unpicked ${filterUnpicked ? 'active' : ''}`}
           onClick={() => setFilterUnpicked(v => !v)}>
-          {filterUnpicked ? '✓ Sans choix' : 'Sans choix'}
+          {filterUnpicked ? `✓ ${t('filterUnpicked')}` : t('filterUnpicked')}
         </button>
       </div>
 
       <div className="disciplines-list">
         {filtered.map(disc => {
+          const discName = getDisciplineNameLang(disc, lang);
           const pickedId = picks[disc.id];
           const locked = isPickLocked(disc.id);
           const isOpen = openDisc === disc.id;
           const isSaving = saving === disc.id;
           const pickedCountry = pickedId ? allCountries.find(c => c.id === pickedId) : null;
-          const pickedNameFR = pickedCountry ? getCountryName(pickedId, pickedCountry.name) : null;
+          const pickedNameLang = pickedCountry ? getCountryNameLang(pickedId, pickedCountry.name, lang) : null;
           const firstDate = GAME_DATES[String(disc.firstDay)];
           const filteredCountries = allCountries.filter(c =>
-            getCountryName(c.id, c.name).toLowerCase().includes(countrySearch.toLowerCase())
+            getCountryNameLang(c.id, c.name, lang).toLowerCase().includes(countrySearch.toLowerCase())
           );
 
           return (
@@ -111,7 +115,7 @@ export default function PicksPage() {
                 <div className="disc-left">
                   <span className="disc-emoji">{disc.emoji}</span>
                   <div className="disc-text">
-                    <span className="disc-name">{disc.nameFR}</span>
+                    <span className="disc-name">{discName}</span>
                     <span className="disc-sport-tag">{disc.sport}</span>
                   </div>
                 </div>
@@ -119,17 +123,17 @@ export default function PicksPage() {
                   {locked ? (
                     <span className="lock-badge">🔒</span>
                   ) : (
-                    <span className="disc-deadline">jusqu'au {firstDate}</span>
+                    <span className="disc-deadline">{t('pickUntil', { date: firstDate })}</span>
                   )}
                   {isSaving
                     ? <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>⏳</span>
                     : pickedId ? (
                       <div className="picked-badge">
                         {pickedCountry?.flag_url && <img src={pickedCountry.flag_url} alt="" />}
-                        <span>{pickedNameFR || pickedId}</span>
+                        <span>{pickedNameLang || pickedId}</span>
                       </div>
                     ) : !locked
-                      ? <span className="no-pick">Choisir</span>
+                      ? <span className="no-pick">{t('pickChoose')}</span>
                       : null}
                   {!locked && <span className="chevron">{isOpen ? '▲' : '▼'}</span>}
                 </div>
@@ -140,13 +144,13 @@ export default function PicksPage() {
                   <input
                     className="country-search"
                     type="text"
-                    placeholder="Filtrer un pays..."
+                    placeholder={t('filterCountry')}
                     value={countrySearch}
                     onChange={e => setCountrySearch(e.target.value)}
                     autoFocus={!isMobile()}
                   />
                   {loadingCountries
-                    ? <div className="loading-countries">Chargement...</div>
+                    ? <div className="loading-countries">{t('loading')}</div>
                     : (
                       <div className="country-grid">
                         {filteredCountries.map(country => (
@@ -156,10 +160,10 @@ export default function PicksPage() {
                             {country.flag_url
                               ? <img src={country.flag_url} alt="" className="flag" />
                               : <span className="flag-placeholder">🏳</span>}
-                            <span className="country-name">{getCountryName(country.id, country.name)}</span>
+                            <span className="country-name">{getCountryNameLang(country.id, country.name, lang)}</span>
                           </button>
                         ))}
-                        {filteredCountries.length === 0 && <span className="no-results">Aucun résultat</span>}
+                        {filteredCountries.length === 0 && <span className="no-results">{t('noResults')}</span>}
                       </div>
                     )}
                 </div>

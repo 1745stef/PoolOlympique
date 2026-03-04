@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { LanguageProvider, useLang } from './hooks/useLanguage';
 import AuthPage from './pages/AuthPage';
 import PicksPage from './pages/PicksPage';
 import LeaderboardPage from './pages/LeaderboardPage';
@@ -11,7 +12,8 @@ import MedalsPage from './pages/MedalsPage';
 import './styles.css';
 
 function AppContent() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth();
+  const { t } = useLang();
   const [tab, setTab] = useState('picks');
 
   if (loading) return (
@@ -29,20 +31,20 @@ function AppContent() {
         <div className="header-left">
           <img src="/la28-logo.png" alt="LA28" className="header-logo" />
           <div>
-            <h1>Pool Olympique</h1>
-            <span className="edition">Los Angeles 2028</span>
+            <h1>{t('appTitle')}</h1>
+            <span className="edition">{t('appEdition')}</span>
           </div>
         </div>
         <div className="header-right"><UserMenu /></div>
       </header>
 
       <nav className="app-nav">
-        <button className={tab === 'picks' ? 'active' : ''} onClick={() => setTab('picks')}>🎯 Pronostics</button>
-        <button className={tab === 'results' ? 'active' : ''} onClick={() => setTab('results')}>📊 Mes résultats</button>
-        <button className={tab === 'leaderboard' ? 'active' : ''} onClick={() => setTab('leaderboard')}>🏆 Classement</button>
-        <button className={tab === 'medals' ? 'active' : ''} onClick={() => setTab('medals')}>🥇 Médailles</button>
+        <button className={tab === 'picks' ? 'active' : ''} onClick={() => setTab('picks')}>{t('navPicks')}</button>
+        <button className={tab === 'results' ? 'active' : ''} onClick={() => setTab('results')}>{t('navResults')}</button>
+        <button className={tab === 'leaderboard' ? 'active' : ''} onClick={() => setTab('leaderboard')}>{t('navLeaderboard')}</button>
+        <button className={tab === 'medals' ? 'active' : ''} onClick={() => setTab('medals')}>{t('navMedals')}</button>
         {user.is_admin && (
-          <button className={`${tab === 'admin' ? 'active' : ''} admin-tab`} onClick={() => setTab('admin')}>🔑 Administration</button>
+          <button className={`${tab === 'admin' ? 'active' : ''} admin-tab`} onClick={() => setTab('admin')}>{t('navAdmin')}</button>
         )}
       </nav>
 
@@ -57,6 +59,19 @@ function AppContent() {
   );
 }
 
+function AppWithProviders() {
+  const [userLang, setUserLang] = useState(null);
+  const handleUserLang = useCallback((lang) => setUserLang(lang), []);
+
+  return (
+    <LanguageProvider initialLang={userLang}>
+      <AuthProvider onUserLang={handleUserLang}>
+        <AppContent />
+      </AuthProvider>
+    </LanguageProvider>
+  );
+}
+
 export default function App() {
-  return <AuthProvider><AppContent /></AuthProvider>;
+  return <AppWithProviders />;
 }

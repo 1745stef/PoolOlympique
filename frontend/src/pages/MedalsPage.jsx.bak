@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { leaderboardApi, olympicApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
-import { useLang } from '../hooks/useLanguage';
-import { getCountryNameLang } from '../data/i18n';
+import { getCountryName } from '../data/translations';
 import { LA28_DISCIPLINES, DISCIPLINES_MAP } from '../data/disciplines';
 
 export default function MedalsPage() {
   const { user, setFavoriteCountry } = useAuth();
-  const { t, lang } = useLang();
   const [results, setResults]         = useState([]);
   const [countries, setCountries]     = useState({});
   const [allCountriesList, setAllCountriesList] = useState([]);
@@ -24,14 +22,16 @@ export default function MedalsPage() {
         ctries.forEach(c => { cMap[c.id] = c; });
         setCountries(cMap);
         const sorted = [...ctries].sort((a, b) =>
-          getCountryNameLang(a.id, a.name, lang).localeCompare(getCountryNameLang(b.id, b.name, lang), lang.startsWith('fr') ? 'fr' : 'en')
+          getCountryName(a.id, a.name).localeCompare(getCountryName(b.id, b.name), 'fr')
         );
         setAllCountriesList(sorted);
+        // Charger la préférence sauvegardée
         if (user?.favorite_country) setSelectedCountry(user.favorite_country);
       })
       .finally(() => setLoading(false));
   }, []);
 
+  // Tableau des nations
   const nationMap = {};
   results.forEach(r => {
     const add = (id, medal) => {
@@ -49,7 +49,7 @@ export default function MedalsPage() {
     const aTotal = a.gold + a.silver + a.bronze;
     const bTotal = b.gold + b.silver + b.bronze;
     if (aTotal === 0 && bTotal === 0)
-      return getCountryNameLang(a.id, countries[a.id]?.name, lang).localeCompare(getCountryNameLang(b.id, countries[b.id]?.name, lang));
+      return getCountryName(a.id, countries[a.id]?.name).localeCompare(getCountryName(b.id, countries[b.id]?.name), 'fr');
     if (aTotal === 0) return 1;
     if (bTotal === 0) return -1;
     if (sort === 'olympic') {
@@ -57,14 +57,16 @@ export default function MedalsPage() {
       if (b.silver !== a.silver) return b.silver - a.silver;
       if (b.bronze !== a.bronze) return b.bronze - a.bronze;
     } else {
+      // Total d'abord, puis or → argent → bronze comme départage
       if (bTotal !== aTotal)   return bTotal   - aTotal;
       if (b.gold   !== a.gold)   return b.gold   - a.gold;
       if (b.silver !== a.silver) return b.silver - a.silver;
       if (b.bronze !== a.bronze) return b.bronze - a.bronze;
     }
-    return getCountryNameLang(a.id, countries[a.id]?.name, lang).localeCompare(getCountryNameLang(b.id, countries[b.id]?.name, lang));
+    return getCountryName(a.id, countries[a.id]?.name).localeCompare(getCountryName(b.id, countries[b.id]?.name), 'fr');
   });
 
+  // Rang ex-aequo — la clé inclut or/argent/bronze dans les deux modes
   let currentRank = 0, prevKey = null;
   const rankedNations = sorted.map((n, i) => {
     const total = n.gold + n.silver + n.bronze;
@@ -74,6 +76,7 @@ export default function MedalsPage() {
     return { ...n, rank: currentRank };
   });
 
+  // Détail pays sélectionné
   const countryResults = selectedCountry
     ? results.filter(r =>
         r.gold_country_id === selectedCountry ||
@@ -90,34 +93,36 @@ export default function MedalsPage() {
     finally { setSaving(false); }
   };
 
-  if (loading) return <div className="loading">{t('loadingMedals')}</div>;
+  if (loading) return <div className="loading">Chargement des médailles...</div>;
 
   if (results.length === 0) return (
     <div className="empty-state" style={{ marginTop: 40 }}>
       <p style={{ fontSize: '2rem' }}>🏅</p>
-      <p>{t('noMedalsAdmin')}</p>
+      <p>Les médailles apparaîtront ici une fois les résultats saisis par l'admin.</p>
     </div>
   );
 
   return (
     <div className="medals-page">
       <div className="medals-layout">
+
+        {/* ══ GAUCHE : Tableau des nations ══ */}
         <div className="medals-left">
           <div className="medals-header">
-            <h3>{t('medalTableTitle')}</h3>
+            <h3>🌍 Tableau des médailles</h3>
             <div className="medals-sort-btns">
-              <button className={sort === 'olympic' ? 'active' : ''} onClick={() => setSort('olympic')}>{t('sortOlympic')}</button>
-              <button className={sort === 'total'   ? 'active' : ''} onClick={() => setSort('total')}>{t('sortTotal')}</button>
+              <button className={sort === 'olympic' ? 'active' : ''} onClick={() => setSort('olympic')}>Classement olympique</button>
+              <button className={sort === 'total'   ? 'active' : ''} onClick={() => setSort('total')}>Total médailles</button>
             </div>
           </div>
           <div className="nations-table-wrap">
             <div className="nations-header">
               <span>#</span>
-              <span>{lang.startsWith('fr') ? 'Pays' : 'Country'}</span>
+              <span>Pays</span>
               <span className="medal-col gold-col">🥇</span>
               <span className="medal-col silver-col">🥈</span>
               <span className="medal-col bronze-col">🥉</span>
-              <span className="medal-col total-col">{t('totalMedals')}</span>
+              <span className="medal-col total-col">Total</span>
             </div>
             <div className="nations-scroll">
               {rankedNations.map((n) => {
@@ -130,7 +135,7 @@ export default function MedalsPage() {
                     </span>
                     <span className="nation-name">
                       {country?.flag_url && <img src={country.flag_url} alt="" className="nation-flag" />}
-                      {getCountryNameLang(n.id, country?.name, lang)}
+                      {getCountryName(n.id, country?.name)}
                     </span>
                     <span className="medal-col">{n.gold   > 0 ? <span className="gold-val">{n.gold}</span>   : <span className="no-medal-dash">—</span>}</span>
                     <span className="medal-col">{n.silver > 0 ? <span className="silver-val">{n.silver}</span> : <span className="no-medal-dash">—</span>}</span>
@@ -143,27 +148,28 @@ export default function MedalsPage() {
           </div>
         </div>
 
+        {/* ══ DROITE : Médailles par pays (dropdown sauvegardé) ══ */}
         <div className="medals-right">
           <div className="medals-header">
-            <h3>{t('favoriteCountryTitle')}</h3>
-            {saving && <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{t('favoriteCountrySaving')}</span>}
+            <h3>🔍 Mon pays favori</h3>
+            {saving && <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>💾 Sauvegarde...</span>}
           </div>
 
           <div className="country-dropdown-wrap">
             <label style={{ fontSize: '0.75rem', color: 'var(--muted)', display: 'block', marginBottom: 6 }}>
-              {t('favoriteCountryLabel')}
+              Ton pays favori — sauvegardé sur ton compte
             </label>
             <select className="country-dropdown" value={selectedCountry} onChange={handleCountryChange}>
-              <option value="">{t('selectCountry')}</option>
+              <option value="">— Sélectionner un pays —</option>
               {allCountriesList.map(c => (
-                <option key={c.id} value={c.id}>{getCountryNameLang(c.id, c.name, lang)}</option>
+                <option key={c.id} value={c.id}>{getCountryName(c.id, c.name)}</option>
               ))}
             </select>
           </div>
 
           {selectedCountry && countryResults.length === 0 && (
             <div className="empty-state" style={{ padding: '24px 16px' }}>
-              <p>{t('noMedalsYet')}</p>
+              <p>Aucune médaille pour ce pays pour l'instant.</p>
             </div>
           )}
 
@@ -173,7 +179,7 @@ export default function MedalsPage() {
                 {countries[selectedCountry]?.flag_url && (
                   <img src={countries[selectedCountry].flag_url} alt="" className="country-detail-flag" />
                 )}
-                <h4>{getCountryNameLang(selectedCountry, countries[selectedCountry]?.name, lang)}</h4>
+                <h4>{getCountryName(selectedCountry, countries[selectedCountry]?.name)}</h4>
                 <div className="country-detail-counts">
                   {nationMap[selectedCountry]?.gold   > 0 && <span className="gold-val">🥇 {nationMap[selectedCountry].gold}</span>}
                   {nationMap[selectedCountry]?.silver > 0 && <span className="silver-val">🥈 {nationMap[selectedCountry].silver}</span>}
@@ -205,7 +211,7 @@ export default function MedalsPage() {
 
           {!selectedCountry && (
             <div className="empty-state" style={{ padding: '24px 16px' }}>
-              <p>{t('selectFavoritePrompt')}</p>
+              <p>Sélectionne ton pays favori pour suivre ses médailles.</p>
             </div>
           )}
         </div>

@@ -3,7 +3,7 @@ import { authApi } from '../lib/api';
 
 const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
+export function AuthProvider({ children, onUserLang }) {
   const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -11,7 +11,10 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('token');
     if (token) {
       authApi.me()
-        .then(data => setUser(data.user))
+        .then(data => {
+          setUser(data.user);
+          if (data.user?.language && onUserLang) onUserLang(data.user.language);
+        })
         .catch(() => localStorage.removeItem('token'))
         .finally(() => setLoading(false));
     } else setLoading(false);
@@ -21,6 +24,7 @@ export function AuthProvider({ children }) {
     const data = await authApi.login(username, password);
     localStorage.setItem('token', data.token);
     setUser(data.user);
+    if (data.user?.language && onUserLang) onUserLang(data.user.language);
     return data;
   };
 

@@ -1,27 +1,17 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { leaderboardApi, olympicApi } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
-import { getCountryName } from '../data/translations';
+import { useLang } from '../hooks/useLanguage';
+import { getCountryNameLang, getDisciplineNameLang } from '../data/i18n';
 import { LA28_DISCIPLINES, getTodayGameDay, getDefaultDay, GAME_DATES, DISPLAY_DAYS } from '../data/disciplines';
 
-
-// ── DayNav : composant isolé pour éviter les re-renders du parent ──────────
-// memo() empêche le re-render si les props ne changent pas
-// Le scroll est géré uniquement ICI, jamais depuis le parent
 const DayNav = memo(({ selectedDay, todayDay, pickMap, onDayClick }) => {
   const navRef    = useRef(null);
   const activeRef = useRef(null);
 
-  // À chaque fois que selectedDay change, scroll vers le bouton actif
-  // On utilise scrollIntoView avec inline:'start' qui positionne à GAUCHE du container
   useEffect(() => {
     if (activeRef.current && navRef.current) {
-      activeRef.current.scrollIntoView({
-        behavior: 'instant',
-        block: 'nearest',
-        inline: 'start',
-      });
-      // Ajuster pour avoir 16px de marge gauche
+      activeRef.current.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'start' });
       if (navRef.current.scrollLeft > 0) {
         navRef.current.scrollLeft = Math.max(0, navRef.current.scrollLeft - 16);
       }
@@ -55,13 +45,15 @@ const DayNav = memo(({ selectedDay, todayDay, pickMap, onDayClick }) => {
 
 export default function MyResultsPage() {
   const { user } = useAuth();
+  const { t, lang } = useLang();
   const [allPicks, setAllPicks]       = useState([]);
   const [results,  setResults]        = useState({});
   const [countries, setCountries]     = useState({});
   const [loading,  setLoading]        = useState(true);
   const [selectedDay, setSelectedDay] = useState(getDefaultDay());
   const [filter, setFilter]           = useState('all');
-  const [tableOpen, setTableOpen]     = useState(true); // fold/extend
+  const [tableOpen, setTableOpen]     = useState(true);
+
   useEffect(() => {
     Promise.all([leaderboardApi.get(), leaderboardApi.getResults(), olympicApi.getCountries()])
       .then(([picks, res, ctries]) => {
@@ -76,9 +68,7 @@ export default function MyResultsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleDayClick = useCallback((day) => {
-    setSelectedDay(day);
-  }, []);
+  const handleDayClick = useCallback((day) => { setSelectedDay(day); }, []);
 
   const myPicks = allPicks.filter(p =>
     p.users?.username === user?.username || p.user_id === user?.id
@@ -86,7 +76,6 @@ export default function MyResultsPage() {
   const pickMap = {};
   myPicks.forEach(p => { pickMap[p.discipline_id] = p; });
 
-  // Stats globales
   const totalPts = myPicks.reduce((sum, p) => sum + (p.points || 0), 0);
   let goldCount = 0, silverCount = 0, bronzeCount = 0;
   myPicks.forEach(p => {
@@ -97,14 +86,12 @@ export default function MyResultsPage() {
     if (p.country_id === r.bronze_country_id) bronzeCount++;
   });
 
-  // Tableau filtré (#4)
   const withPoints  = myPicks.filter(p => (p.points || 0) > 0);
   const withPending = myPicks.filter(p => !results[p.discipline_id]);
   const tableRows = filter === 'points' ? withPoints
                   : filter === 'pending' ? withPending
                   : myPicks;
 
-  // Liste du jour (#5) — résumé uniquement si jour de médaille
   const todayDay    = getTodayGameDay();
   const discsForDay = LA28_DISCIPLINES.filter(d => d.days.includes(selectedDay));
   const hasMedalToday = discsForDay.some(d => d.medalDay === selectedDay);
@@ -116,71 +103,60 @@ export default function MyResultsPage() {
     const r = results[pick.discipline_id];
     if (!r) return [];
     const m = [];
-    if (pick.country_id === r.gold_country_id)   m.push({ icon: '🥇', label: 'Or',     cls: 'medal-or',     pts: 5 });
-    if (pick.country_id === r.silver_country_id) m.push({ icon: '🥈', label: 'Argent', cls: 'medal-argent', pts: 3 });
-    if (pick.country_id === r.bronze_country_id) m.push({ icon: '🥉', label: 'Bronze', cls: 'medal-bronze', pts: 1 });
+    if (pick.country_id === r.gold_country_id)   m.push({ icon: '🥇', label: t('gold'),   cls: 'medal-or',     pts: 5 });
+    if (pick.country_id === r.silver_country_id) m.push({ icon: '🥈', label: t('silver'), cls: 'medal-argent', pts: 3 });
+    if (pick.country_id === r.bronze_country_id) m.push({ icon: '🥉', label: t('bronze'), cls: 'medal-bronze', pts: 1 });
     return m;
   };
 
-  if (loading) return <div className="loading">Chargement...</div>;
+  if (loading) return <div className="loading">{t('loading')}</div>;
 
   return (
     <div className="my-results-page">
-
-      {/* ══ 1. PASTILLES ══ */}
       <div className="medal-badges-row">
         <div className="medal-badge-card gold-card">
           <span className="medal-badge-icon">🥇</span>
           <span className="medal-badge-count">{goldCount}</span>
-          <span className="medal-badge-label">Or</span>
+          <span className="medal-badge-label">{t('gold')}</span>
         </div>
         <div className="medal-badge-card silver-card">
           <span className="medal-badge-icon">🥈</span>
           <span className="medal-badge-count">{silverCount}</span>
-          <span className="medal-badge-label">Argent</span>
+          <span className="medal-badge-label">{t('silver')}</span>
         </div>
         <div className="medal-badge-card bronze-card">
           <span className="medal-badge-icon">🥉</span>
           <span className="medal-badge-count">{bronzeCount}</span>
-          <span className="medal-badge-label">Bronze</span>
+          <span className="medal-badge-label">{t('bronze')}</span>
         </div>
         <div className="medal-badge-card pts-card">
           <span className="medal-badge-icon">⭐</span>
           <span className="medal-badge-count">{totalPts}</span>
-          <span className="medal-badge-label">Points</span>
+          <span className="medal-badge-label">{t('points')}</span>
         </div>
       </div>
 
-      {/* ══ 2. BANDEAU J1–J19 ══ */}
-      <DayNav
-        selectedDay={selectedDay}
-        todayDay={todayDay}
-        pickMap={pickMap}
-        onDayClick={handleDayClick}
-      />
+      <DayNav selectedDay={selectedDay} todayDay={todayDay} pickMap={pickMap} onDayClick={handleDayClick} />
 
-      {/* ══ 3. FILTRES (filtrent tableau #4) ══ */}
       <div className="lb-filters">
         <button className={filter === 'all'     ? 'active' : ''} onClick={() => setFilter('all')}>
-          Tous ({myPicks.length})
+          {t('filterAll', { count: myPicks.length })}
         </button>
         <button className={filter === 'points'  ? 'active' : ''} onClick={() => setFilter('points')}>
-          ✅ Avec points ({withPoints.length})
+          {t('filterWithPoints', { count: withPoints.length })}
         </button>
         <button className={filter === 'pending' ? 'active' : ''} onClick={() => setFilter('pending')}>
-          ⏳ En attente ({withPending.length})
+          {t('filterPending', { count: withPending.length })}
         </button>
       </div>
 
-      {/* ══ 4. TABLEAU avec fold/extend ══ */}
       <div className="v6-table">
-        {/* En-tête cliquable pour fold/extend */}
         <button className="v6-table-toggle" onClick={() => setTableOpen(v => !v)}>
           <div className="v6-table-header" style={{ flex: 1 }}>
-            <span>Discipline</span>
-            <span>Pays choisi</span>
-            <span>Médailles</span>
-            <span>Pts</span>
+            <span>{t('tableColDiscipline')}</span>
+            <span>{t('tableColCountry')}</span>
+            <span>{t('tableColMedals')}</span>
+            <span>{t('tableColPts')}</span>
           </div>
           <span className={`v6-toggle-arrow ${tableOpen ? 'open' : ''}`}>▼</span>
         </button>
@@ -188,7 +164,7 @@ export default function MyResultsPage() {
         {tableOpen && (
           <>
             {tableRows.length === 0 && (
-              <div className="v6-table-empty">Aucun pronostic pour ce filtre.</div>
+              <div className="v6-table-empty">{t('tableEmpty')}</div>
             )}
             {tableRows.map(pick => {
               const disc    = LA28_DISCIPLINES.find(d => d.id === pick.discipline_id);
@@ -201,15 +177,15 @@ export default function MyResultsPage() {
                 <div key={pick.discipline_id} className={`v6-table-row ${pts > 0 ? 'v6-scored' : ''}`}>
                   <div className="v6-disc">
                     <span className="v6-emoji">{disc.emoji}</span>
-                    <span className="v6-disc-name">{disc.nameFR}</span>
+                    <span className="v6-disc-name">{getDisciplineNameLang(disc, lang)}</span>
                   </div>
                   <div className="v6-country">
                     {country?.flag_url && <img src={country.flag_url} alt="" className="slot-flag" />}
-                    <span>{getCountryName(pick.country_id, country?.name)}</span>
+                    <span>{getCountryNameLang(pick.country_id, country?.name, lang)}</span>
                   </div>
                   <div className="v6-medals">
                     {!result && <span className="v6-pending">⏳</span>}
-                    {result && medals.length === 0 && <span className="v6-miss">✗ Raté</span>}
+                    {result && medals.length === 0 && <span className="v6-miss">{t('resultMissed')}</span>}
                     {medals.map((m, i) => (
                       <span key={i} className={`v6-medal-pill ${m.cls}`}>{m.icon} +{m.pts}pts</span>
                     ))}
@@ -224,22 +200,20 @@ export default function MyResultsPage() {
         )}
       </div>
 
-      {/* ══ 5. LISTE DU JOUR ══ */}
       <div className={`day-header ${todayDay === selectedDay ? 'today' : ''}`} style={{ marginTop: 24 }}>
-        <span className="day-label">Jour {selectedDay} — {GAME_DATES[String(selectedDay)]}</span>
+        <span className="day-label">{t('dayLabel', { day: selectedDay, date: GAME_DATES[String(selectedDay)] })}</span>
         {todayDay !== null && todayDay === selectedDay && (
-          <span className="today-badge">Aujourd'hui</span>
+          <span className="today-badge">{t('today')}</span>
         )}
-        {/* Résumé : médailles et points seulement si jour de médaille */}
         <span className="day-summary-mini">
-          {dayPicked} pronostics
-          {hasMedalToday && dayScored !== null && ` · ${dayScored} corrects · ${dayPts} pts`}
+          {t('daySummary', { picked: dayPicked })}
+          {hasMedalToday && dayScored !== null && ` ${t('daySummaryScored', { scored: dayScored, pts: dayPts })}`}
         </span>
       </div>
 
       <div className="day-disciplines">
         {discsForDay.length === 0 && (
-          <div className="empty-state"><p>Aucune discipline ce jour.</p></div>
+          <div className="empty-state"><p>{t('noDisciplineDay')}</p></div>
         )}
         {discsForDay.map(disc => {
           const pick    = pickMap[disc.id];
@@ -253,22 +227,21 @@ export default function MyResultsPage() {
               <div className="ddr-disc">
                 <span className="disc-emoji-sm">{disc.emoji}</span>
                 <div className="ddr-disc-text">
-                  <span className="ddr-name">{disc.nameFR}</span>
-                  {isMedalDay && <span className="medal-day-tag">🏅 Médaille</span>}
+                  <span className="ddr-name">{getDisciplineNameLang(disc, lang)}</span>
+                  {isMedalDay && <span className="medal-day-tag">{t('medalDayTag')}</span>}
                 </div>
               </div>
               <div className="ddr-pick">
                 {pick ? (
                   <>
                     {country?.flag_url && <img src={country.flag_url} alt="" className="slot-flag" />}
-                    <span className="ddr-country">{getCountryName(pick.country_id, country?.name)}</span>
+                    <span className="ddr-country">{getCountryNameLang(pick.country_id, country?.name, lang)}</span>
                   </>
                 ) : <span className="ddr-no-pick">—</span>}
               </div>
               <div className="ddr-result">
-                {/* Résultat seulement si jour de médaille */}
                 {isMedalDay && !result && pick && <span className="mr-pending">⏳</span>}
-                {isMedalDay && result && medals.length === 0 && pick && <span className="mr-miss">✗ Raté</span>}
+                {isMedalDay && result && medals.length === 0 && pick && <span className="mr-miss">{t('resultMissed')}</span>}
                 {isMedalDay && medals.map((m, i) => (
                   <span key={i} className={`mr-medal-badge ${m.cls}`}>{m.icon} {m.label} +{m.pts}pts</span>
                 ))}
