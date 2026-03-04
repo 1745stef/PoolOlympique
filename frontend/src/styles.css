@@ -1435,3 +1435,33 @@ div:hover > .avatar-crop-hover {
 /* Role select */
 .role-select { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; color: var(--la-white); font-family: 'Outfit', sans-serif; font-size: 0.78rem; padding: 5px 8px; cursor: pointer; }
 .role-select:focus { outline: none; border-color: var(--la-coral); }
+
+/* ─── Picks header étendu ────────────────────────────────────────────────── */
+.picks-header-info { flex: 1; }
+.picks-header-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.picks-scale-mini { display: flex; gap: 12px; margin-top: 6px; }
+.picks-scale-mini span { font-size: 0.8rem; color: var(--muted); }
+.picks-scale-mini strong { color: var(--la-white); }
+
+.rules-toggle-btn { background: rgba(255,255,255,0.08); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; color: var(--la-white); font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.2s; }
+.rules-toggle-btn:hover { background: rgba(255,255,255,0.15); }
+
+/* ─── Règles dépliables ──────────────────────────────────────────────────── */
+.picks-rules { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; animation: fadeIn 0.2s ease; }
+.rules-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 2px; color: var(--la-white); margin-bottom: 16px; }
+.rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.rule-item { display: flex; gap: 12px; align-items: flex-start; }
+.rule-item.rule-example { grid-column: 1 / -1; background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; border: 1px solid var(--border); }
+.rule-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
+.rule-item strong { display: block; color: var(--la-white); font-size: 0.88rem; margin-bottom: 4px; }
+.rule-item p { color: var(--muted); font-size: 0.82rem; line-height: 1.5; margin: 0; }
+.rules-scale { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.scale-item { font-size: 0.82rem; padding: 3px 10px; border-radius: 20px; }
+.scale-item.gold   { background: rgba(212,160,23,0.15); color: #f0c040; }
+.scale-item.silver { background: rgba(184,192,204,0.15); color: #b8c0cc; }
+.scale-item.bronze { background: rgba(205,127,50,0.15); color: #cd7f32; }
+
+@media (max-width: 600px) {
+  .rules-grid { grid-template-columns: 1fr; }
+  .rule-item.rule-example { grid-column: 1; }
+}

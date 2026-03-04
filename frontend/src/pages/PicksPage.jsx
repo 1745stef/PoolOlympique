@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import { picksApi, olympicApi } from '../lib/api';
 import { useLang } from '../hooks/useLanguage';
 import { getDisciplineNameLang, getCountryNameLang } from '../data/i18n';
@@ -8,6 +9,7 @@ const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 export default function PicksPage() {
   const { t, lang } = useLang();
+  const { user } = useAuth();
   const [picks, setPicks] = useState({});
   const [openDisc, setOpenDisc] = useState(null);
   const [allCountries, setAllCountries] = useState([]);
@@ -17,6 +19,7 @@ export default function PicksPage() {
   const [saving, setSaving] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filterUnpicked, setFilterUnpicked] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   useEffect(() => {
     Promise.all([picksApi.getAll(), olympicApi.getCountries()])
@@ -65,6 +68,14 @@ export default function PicksPage() {
 
   if (loading) return <div className="loading">{t('loading')}</div>;
 
+  // Pays favori pour l'exemple dans les règles
+  const favCountry = user?.favorite_country
+    ? allCountries.find(c => c.id === user.favorite_country)
+    : null;
+  const exampleCountry = favCountry
+    ? getCountryNameLang(favCountry.id, favCountry.name, lang)
+    : 'USA';
+
   return (
     <div className="picks-page">
       <div className="picks-header">
@@ -78,11 +89,62 @@ export default function PicksPage() {
           </svg>
           <div className="progress-text">{pct}%</div>
         </div>
-        <div>
-          <h2>{t('myPicksTitle')}</h2>
+        <div className="picks-header-info">
+          <div className="picks-header-top">
+            <h2>{t('myPicksTitle')}</h2>
+            <button className="rules-toggle-btn" onClick={() => setShowRules(v => !v)} title={t('rulesTitle')}>
+              {showRules ? '▲' : '?'}
+            </button>
+          </div>
           <p className="lock-info">🎯 {t('picksCompleted', { picked: pickedCount, total })}</p>
+          <div className="picks-scale-mini">
+            <span>🥇 <strong>5pts</strong></span>
+            <span>🥈 <strong>3pts</strong></span>
+            <span>🥉 <strong>1pt</strong></span>
+          </div>
         </div>
       </div>
+
+      {showRules && (
+        <div className="picks-rules">
+          <h3 className="rules-title">📋 {t('rulesTitle')}</h3>
+          <div className="rules-grid">
+            <div className="rule-item">
+              <span className="rule-icon">🌍</span>
+              <div>
+                <strong>{t('ruleOneCountryTitle')}</strong>
+                <p>{t('ruleOneCountryDesc')}</p>
+              </div>
+            </div>
+            <div className="rule-item">
+              <span className="rule-icon">🏅</span>
+              <div>
+                <strong>{t('rulePointsTitle')}</strong>
+                <p>{t('rulePointsDesc')}</p>
+                <div className="rules-scale">
+                  <span className="scale-item gold">🥇 {t('gold')} = <strong>5 pts</strong></span>
+                  <span className="scale-item silver">🥈 {t('silver')} = <strong>3 pts</strong></span>
+                  <span className="scale-item bronze">🥉 {t('bronze')} = <strong>1 pt</strong></span>
+                </div>
+              </div>
+            </div>
+            <div className="rule-item">
+              <span className="rule-icon">⚠️</span>
+              <div>
+                <strong>{t('ruleMultiMedalTitle')}</strong>
+                <p>{t('ruleMultiMedalDesc')}</p>
+              </div>
+            </div>
+            <div className="rule-item rule-example">
+              <span className="rule-icon">💡</span>
+              <div>
+                <strong>{t('ruleExampleTitle')}</strong>
+                <p>{t('ruleExampleDescDynamic', { country: exampleCountry })}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="picks-toolbar">
         <input className="search-input" style={{ flex: 1 }} type="text"

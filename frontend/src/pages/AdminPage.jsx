@@ -304,16 +304,10 @@ export default function AdminPage({ onSettingsChange }) {
           <div className="admin-stats">
             <div className="stat-card"><span className="stat-value gold">{completedCount}</span><span className="stat-label">{t('adminPodiumsEntered')}</span></div>
             <div className="stat-card"><span className="stat-value">{disciplines.length - completedCount}</span><span className="stat-label">{t('adminRemaining')}</span></div>
-            <div className="stat-card"><span className="stat-value">{users.length}</span><span className="stat-label">{t('adminParticipants')}</span></div>
             <div className="stat-card">
               <div className="stat-progress-bar"><div className="stat-progress-fill" style={{ width: `${(completedCount / Math.max(disciplines.length, 1)) * 100}%` }} /></div>
               <span className="stat-label">{Math.round((completedCount / Math.max(disciplines.length, 1)) * 100)}{t('adminCompleted')}</span>
             </div>
-          </div>
-          <div className="points-legend">
-            <span className="legend-title">{t('adminScale')}</span>
-            {MEDALS.map(m => <span key={m.key} className="legend-item" style={{ '--medal-color': m.color }}>{m.icon} {m.label} = <strong>{m.points} pts</strong></span>)}
-            <span className="legend-note">{t('adminScaleNote')}</span>
           </div>
           <div className="results-toolbar">
             <input className="search-input" style={{ flex: 1 }} type="text" placeholder={t('adminSearchDiscipline')} value={search} onChange={e => setSearch(e.target.value)} />
