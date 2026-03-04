@@ -80,18 +80,19 @@ function AppContent() {
         />
       )}
 
-      <header className="app-header">
-        <div className="header-left">
-          <img src="/la28-logo.png" alt="LA28" className="header-logo" />
-          <div>
-            <h1>{t('appTitle')}</h1>
-            <span className="edition">{t('appEdition')}</span>
+      <div className="app-top">
+        <header className="app-header">
+          <div className="header-left">
+            <img src="/la28-logo.png" alt="LA28" className="header-logo" />
+            <div>
+              <h1>{t('appTitle')}</h1>
+              <span className="edition">{t('appEdition')}</span>
+            </div>
           </div>
-        </div>
-        <div className="header-right"><UserMenu /></div>
-      </header>
+          <div className="header-right"><UserMenu /></div>
+        </header>
 
-      <nav className="app-nav">
+        <nav className="app-nav">
         <button className={tab === 'picks' ? 'active' : ''} onClick={() => setTab('picks')}>{t('navPicks')}</button>
         <button className={tab === 'results' ? 'active' : ''} onClick={() => setTab('results')}>{t('navResults')}</button>
         <button className={tab === 'leaderboard' ? 'active' : ''} onClick={() => setTab('leaderboard')}>{t('navLeaderboard')}</button>
@@ -99,7 +100,8 @@ function AppContent() {
         {getMyLevel(user) <= 3 && (
           <button className={`${tab === 'admin' ? 'active' : ''} admin-tab`} onClick={() => setTab('admin')}>{t('navAdmin')}</button>
         )}
-      </nav>
+        </nav>
+      </div>
 
       <main className="app-main">
         {tab === 'picks'       && <PicksPage />}

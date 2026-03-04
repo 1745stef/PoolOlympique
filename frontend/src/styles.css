@@ -87,10 +87,10 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
 /* ── App Shell ─────────────────────────────────────────── */
 .app { min-height: 100vh; display: flex; flex-direction: column; }
 
+.app-top { position: sticky; top: 0; z-index: 100; }
 .app-header {
   background: var(--la-black); border-bottom: 2px solid var(--la-coral);
   padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top: 0; z-index: 100;
 }
 
 .header-left { display: flex; align-items: center; gap: 14px; }
@@ -106,7 +106,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
 .btn-logout:hover { background: rgba(232,57,14,0.2); }
 
 /* ── Nav ──────────────────────────────────────────────── */
-.app-nav { background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 0 24px; position: sticky; top: 57px; z-index: 99; scrollbar-width: none; }
+.app-nav { background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 0 24px; z-index: 99; scrollbar-width: none; }
 .app-nav::-webkit-scrollbar { display: none; }
 .app-nav button { background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--muted); padding: 14px 20px; font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-bottom: -1px; }
 .app-nav button.active { color: var(--la-coral); border-bottom-color: var(--la-coral); }
@@ -1057,7 +1057,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
 
 /* ── Nav sticky mobile ── */
 @media (max-width: 640px) {
-  .app-nav { top: 52px; }
 }
 
 /* ════════════════════════════════════════════════════════

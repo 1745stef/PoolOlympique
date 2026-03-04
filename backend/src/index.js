@@ -408,16 +408,7 @@ app.put('/admin/users/:id/role', requireLevel(2), async (req, res) => {
   const { role_id } = req.body;
   const myLevel = req.user.role_level ?? ROLE_PLAYER;
 
-  // Récupérer le rôle cible
-  const targetRole = await getRoleById(role_id);
-  if (!targetRole) return res.status(400).json({ error: 'Rôle invalide' });
-
-  // On ne peut pas attribuer un rôle de niveau >= au sien (ex: admin ne peut pas nommer superadmin)
-  if (targetRole.level <= myLevel) {
-    return res.status(403).json({ error: 'Vous ne pouvez pas attribuer un rôle supérieur ou égal au vôtre' });
-  }
-
-  // Un superadmin ne peut pas se dégrader lui-même
+  // Un superadmin ne peut pas modifier son propre rôle
   if (req.params.id === req.user.id) {
     return res.status(400).json({ error: 'Vous ne pouvez pas modifier votre propre rôle' });
   }
@@ -426,6 +417,24 @@ app.put('/admin/users/:id/role', requireLevel(2), async (req, res) => {
   const targetUser = await getUserWithRole(req.params.id);
   if (targetUser && userLevel(targetUser) <= myLevel) {
     return res.status(403).json({ error: 'Vous ne pouvez pas modifier le rôle de cet utilisateur' });
+  }
+
+  // role_id null = retour au statut joueur (pas de rôle)
+  if (!role_id) {
+    const { data, error } = await supabase.from('users')
+      .update({ role_id: null }).eq('id', req.params.id)
+      .select('*, roles(id, name, level, permissions)').single();
+    if (error) return res.status(500).json({ error: error?.message || String(error) });
+    return res.json(data);
+  }
+
+  // Récupérer le rôle cible
+  const targetRole = await getRoleById(role_id);
+  if (!targetRole) return res.status(400).json({ error: 'Rôle invalide' });
+
+  // On ne peut pas attribuer un rôle de niveau >= au sien (ex: admin ne peut pas nommer superadmin)
+  if (targetRole.level <= myLevel) {
+    return res.status(403).json({ error: 'Vous ne pouvez pas attribuer un rôle supérieur ou égal au vôtre' });
   }
 
   const { data, error } = await supabase.from('users')
