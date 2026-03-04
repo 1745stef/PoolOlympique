@@ -91,8 +91,6 @@ const T = {
 
   // Cropper
   cropTitle:   { 'fr-fr':'✂️ Recadrer la photo', 'fr-ca':'✂️ Recadrer la photo', 'en-us':'✂️ Crop Photo', 'en-gb':'✂️ Crop Photo', 'en-ca':'✂️ Crop Photo' },
-  cropHint:    { 'fr-fr':'Fais glisser · molette ou pincer pour zoomer', 'fr-ca':'Fais glisser · molette ou pincer pour zoomer', 'en-us':'Drag · scroll or pinch to zoom', 'en-gb':'Drag · scroll or pinch to zoom', 'en-ca':'Drag · scroll or pinch to zoom' },
-  cropConfirm: { 'fr-fr':'✓ Utiliser cette photo', 'fr-ca':'✓ Utiliser cette photo', 'en-us':'✓ Use This Photo', 'en-gb':'✓ Use This Photo', 'en-ca':'✓ Use This Photo' },
 
   // Picks Page
   myPicksTitle:     { 'fr-fr':'Mes pronostics', 'fr-ca':'Mes pronostics', 'en-us':'My Picks', 'en-gb':'My Picks', 'en-ca':'My Picks' },
@@ -118,7 +116,6 @@ const T = {
   tableColPts:    { 'fr-fr':'Pts', 'fr-ca':'Pts', 'en-us':'Pts', 'en-gb':'Pts', 'en-ca':'Pts' },
   tableEmpty:     { 'fr-fr':'Aucun pronostic pour ce filtre.', 'fr-ca':'Aucun pronostic pour ce filtre.', 'en-us':'No picks for this filter.', 'en-gb':'No picks for this filter.', 'en-ca':'No picks for this filter.' },
   resultMissed:   { 'fr-fr':'✗ Raté', 'fr-ca':'✗ Raté', 'en-us':'✗ Missed', 'en-gb':'✗ Missed', 'en-ca':'✗ Missed' },
-  dayLabel:       { 'fr-fr':'Jour {day} — {date}', 'fr-ca':'Jour {day} — {date}', 'en-us':'Day {day} — {date}', 'en-gb':'Day {day} — {date}', 'en-ca':'Day {day} — {date}' },
   today:          { 'fr-fr':"Aujourd'hui", 'fr-ca':"Aujourd'hui", 'en-us':'Today', 'en-gb':'Today', 'en-ca':'Today' },
   daySummary:     { 'fr-fr':'{picked} pronostics', 'fr-ca':'{picked} pronostics', 'en-us':'{picked} picks', 'en-gb':'{picked} picks', 'en-ca':'{picked} picks' },
   daySummaryScored:{ 'fr-fr':'· {scored} corrects · {pts} pts', 'fr-ca':'· {scored} corrects · {pts} pts', 'en-us':'· {scored} correct · {pts} pts', 'en-gb':'· {scored} correct · {pts} pts', 'en-ca':'· {scored} correct · {pts} pts' },
@@ -154,10 +151,7 @@ const T = {
   // Admin
   adminPodiumsEntered:{ 'fr-fr':'Podiums saisis', 'fr-ca':'Podiums saisis', 'en-us':'Podiums Entered', 'en-gb':'Podiums Entered', 'en-ca':'Podiums Entered' },
   adminRemaining:    { 'fr-fr':'Restants', 'fr-ca':'Restants', 'en-us':'Remaining', 'en-gb':'Remaining', 'en-ca':'Remaining' },
-  adminParticipants: { 'fr-fr':'Participants', 'fr-ca':'Participants', 'en-us':'Participants', 'en-gb':'Participants', 'en-ca':'Participants' },
   adminCompleted:    { 'fr-fr':'% complété', 'fr-ca':'% complété', 'en-us':'% completed', 'en-gb':'% completed', 'en-ca':'% completed' },
-  adminScale:        { 'fr-fr':'Barème :', 'fr-ca':'Barème :', 'en-us':'Scoring:', 'en-gb':'Scoring:', 'en-ca':'Scoring:' },
-  adminScaleNote:    { 'fr-fr':'• Plusieurs médailles pour un même pays → points de la plus haute uniquement', 'fr-ca':'• Plusieurs médailles pour un même pays → points de la plus haute uniquement', 'en-us':'• Multiple medals for the same country → points from highest only', 'en-gb':'• Multiple medals for the same country → points from highest only', 'en-ca':'• Multiple medals for the same country → points from highest only' },
   adminTabResults:   { 'fr-fr':'🥇 Résultats ({done}/{total})', 'fr-ca':'🥇 Résultats ({done}/{total})', 'en-us':'🥇 Results ({done}/{total})', 'en-gb':'🥇 Results ({done}/{total})', 'en-ca':'🥇 Results ({done}/{total})' },
   adminTabUsers:     { 'fr-fr':'👥 Joueurs ({count})', 'fr-ca':'👥 Joueurs ({count})', 'en-us':'👥 Players ({count})', 'en-gb':'👥 Players ({count})', 'en-ca':'👥 Players ({count})' },
   adminTabGroups:    { 'fr-fr':'🏟 Groupes ({count})', 'fr-ca':'🏟 Groupes ({count})', 'en-us':'🏟 Groups ({count})', 'en-gb':'🏟 Groups ({count})', 'en-ca':'🏟 Groups ({count})' },
@@ -170,10 +164,7 @@ const T = {
   adminUsersRegistered:{ 'fr-fr':'Inscription', 'fr-ca':'Inscription', 'en-us':'Registered', 'en-gb':'Registered', 'en-ca':'Registered' },
   adminUsersRole:    { 'fr-fr':'Rôle', 'fr-ca':'Rôle', 'en-us':'Role', 'en-gb':'Role', 'en-ca':'Role' },
   adminUsersActions: { 'fr-fr':'Actions', 'fr-ca':'Actions', 'en-us':'Actions', 'en-gb':'Actions', 'en-ca':'Actions' },
-  adminRoleAdmin:    { 'fr-fr':'🔑 Admin', 'fr-ca':'🔑 Admin', 'en-us':'🔑 Admin', 'en-gb':'🔑 Admin', 'en-ca':'🔑 Admin' },
   adminRolePlayer:   { 'fr-fr':'👤 Joueur', 'fr-ca':'👤 Joueur', 'en-us':'👤 Player', 'en-gb':'👤 Player', 'en-ca':'👤 Player' },
-  adminPromote:      { 'fr-fr':'Promouvoir', 'fr-ca':'Promouvoir', 'en-us':'Promote', 'en-gb':'Promote', 'en-ca':'Promote' },
-  adminRevoke:       { 'fr-fr':'Révoquer', 'fr-ca':'Révoquer', 'en-us':'Revoke', 'en-gb':'Revoke', 'en-ca':'Revoke' },
   adminDeleteUserConfirm:{ 'fr-fr':'Supprimer {username} ? Tous ses pronostics seront effacés.', 'fr-ca':'Supprimer {username} ? Tous ses pronostics seront effacés.', 'en-us':'Delete {username}? All their picks will be erased.', 'en-gb':'Delete {username}? All their picks will be erased.', 'en-ca':'Delete {username}? All their picks will be erased.' },
   adminDeletedUser:  { 'fr-fr':'{username} supprimé', 'fr-ca':'{username} supprimé', 'en-us':'{username} deleted', 'en-gb':'{username} deleted', 'en-ca':'{username} deleted' },
   adminRoleUpdated:  { 'fr-fr':'Rôle mis à jour', 'fr-ca':'Rôle mis à jour', 'en-us':'Role updated', 'en-gb':'Role updated', 'en-ca':'Role updated' },
@@ -196,7 +187,47 @@ const T = {
   adminTempBadge:    { 'fr-fr':'MDP TEMPORAIRE', 'fr-ca':'MDP TEMPORAIRE', 'en-us':'TEMP PASSWORD', 'en-gb':'TEMP PASSWORD', 'en-ca':'TEMP PASSWORD' },
   adminSearchDiscipline:{ 'fr-fr':'🔍 Rechercher une discipline...', 'fr-ca':'🔍 Rechercher une discipline...', 'en-us':'🔍 Search a discipline...', 'en-gb':'🔍 Search a discipline...', 'en-ca':'🔍 Search a discipline...' },
 
+
+
+
+  // Règles pronostics
+  rulesTitle:           { 'fr-fr':'Comment ça marche ?', 'fr-ca':'Comment ça marche ?', 'en-us':'How does it work?', 'en-gb':'How does it work?', 'en-ca':'How does it work?' },
+  ruleOneCountryTitle:  { 'fr-fr':'Un pays par discipline', 'fr-ca':'Un pays par discipline', 'en-us':'One country per event', 'en-gb':'One country per event', 'en-ca':'One country per event' },
+  ruleOneCountryDesc:   { 'fr-fr':'Pour chaque discipline olympique, choisis le pays que tu crois le plus susceptible de monter sur le podium.', 'fr-ca':'Pour chaque discipline olympique, choisis le pays que tu crois le plus susceptible de monter sur le podium.', 'en-us':'For each Olympic event, pick the country you think is most likely to reach the podium.', 'en-gb':'For each Olympic event, pick the country you think is most likely to reach the podium.', 'en-ca':'For each Olympic event, pick the country you think is most likely to reach the podium.' },
+  rulePointsTitle:      { 'fr-fr':'Points selon la médaille', 'fr-ca':'Points selon la médaille', 'en-us':'Points by medal', 'en-gb':'Points by medal', 'en-ca':'Points by medal' },
+  rulePointsDesc:       { 'fr-fr':'Tu gagnes des points selon la médaille remportée par ton pays choisi :', 'fr-ca':'Tu gagnes des points selon la médaille remportée par ton pays choisi :', 'en-us':'You earn points based on the medal won by your chosen country:', 'en-gb':'You earn points based on the medal won by your chosen country:', 'en-ca':'You earn points based on the medal won by your chosen country:' },
+  ruleMultiMedalTitle:  { 'fr-fr':'Plusieurs médailles pour un même pays', 'fr-ca':'Plusieurs médailles pour un même pays', 'en-us':'Multiple medals for the same country', 'en-gb':'Multiple medals for the same country', 'en-ca':'Multiple medals for the same country' },
+  ruleMultiMedalDesc:   { 'fr-fr':'Si ton pays gagne plusieurs médailles dans la même discipline, les points de chaque médaille s\'additionnent. Ex: or + bronze = 5 + 1 = 6 pts.', 'fr-ca':'Si ton pays gagne plusieurs médailles dans la même discipline, les points de chaque médaille s\'additionnent. Ex: or + bronze = 5 + 1 = 6 pts.', 'en-us':'If your country wins multiple medals in the same event, points from each medal are added together. Ex: gold + bronze = 5 + 1 = 6 pts.', 'en-gb':'If your country wins multiple medals in the same event, points from each medal are added together. Ex: gold + bronze = 5 + 1 = 6 pts.', 'en-ca':'If your country wins multiple medals in the same event, points from each medal are added together. Ex: gold + bronze = 5 + 1 = 6 pts.' },
+  ruleExampleTitle:     { 'fr-fr':'Exemple concret', 'fr-ca':'Exemple concret', 'en-us':'Concrete example', 'en-gb':'Concrete example', 'en-ca':'Concrete example' },
+  ruleExampleDescDynamic: { 'fr-fr':"Tu choisis {country} en natation 100m. {country} remporte l'or et le bronze → tu gagnes 5 + 1 = 6 pts.", 'fr-ca':"Tu choisis {country} en natation 100m. {country} remporte l'or et le bronze → tu gagnes 5 + 1 = 6 pts.", 'en-us':'You pick {country} in 100m swimming. {country} wins gold and bronze → you earn 5 + 1 = 6 pts.', 'en-gb':'You pick {country} in 100m swimming. {country} wins gold and bronze → you earn 5 + 1 = 6 pts.', 'en-ca':'You pick {country} in 100m swimming. {country} wins gold and bronze → you earn 5 + 1 = 6 pts.' },
+
+  // Rôles
+  role_superadmin: { 'fr-fr':'Super Admin', 'fr-ca':'Super Admin', 'en-us':'Super Admin', 'en-gb':'Super Admin', 'en-ca':'Super Admin' },
+  role_admin:      { 'fr-fr':'Admin',       'fr-ca':'Admin',       'en-us':'Admin',       'en-gb':'Admin',       'en-ca':'Admin' },
+  role_captain:    { 'fr-fr':'Capitaine',   'fr-ca':'Capitaine',   'en-us':'Captain',     'en-gb':'Captain',     'en-ca':'Captain' },
+  adminRoleUpdated:{ 'fr-fr':'Rôle mis à jour', 'fr-ca':'Rôle mis à jour', 'en-us':'Role updated', 'en-gb':'Role updated', 'en-ca':'Role updated' },
+
+  // Inactivity timer
+  inactivityTitle:   { 'fr-fr':'Session inactive', 'fr-ca':'Session inactive', 'en-us':'Inactive Session', 'en-gb':'Inactive Session', 'en-ca':'Inactive Session' },
+  inactivityMessage: { 'fr-fr':'Vous serez déconnecté automatiquement dans :', 'fr-ca':'Vous serez déconnecté automatiquement dans :', 'en-us':'You will be automatically logged out in:', 'en-gb':'You will be automatically logged out in:', 'en-ca':'You will be automatically logged out in:' },
+  inactivityStay:    { 'fr-fr':'Je suis là !', 'fr-ca':'Je suis là !', 'en-us':"I'm here!", 'en-gb':"I'm here!", 'en-ca':"I'm here!" },
+  inactivityLogout:  { 'fr-fr':'Se déconnecter', 'fr-ca':'Se déconnecter', 'en-us':'Log Out', 'en-gb':'Log Out', 'en-ca':'Log Out' },
+
+  // Admin Settings tab
+  adminTabSettings:  { 'fr-fr':'⚙️ Paramètres', 'fr-ca':'⚙️ Paramètres', 'en-us':'⚙️ Settings', 'en-gb':'⚙️ Settings', 'en-ca':'⚙️ Settings' },
+  settingsInactivityTitle: { 'fr-fr':'Déconnexion par inactivité', 'fr-ca':'Déconnexion par inactivité', 'en-us':'Inactivity Logout', 'en-gb':'Inactivity Logout', 'en-ca':'Inactivity Logout' },
+  settingsInactivityDesc:  { 'fr-fr':'Déconnecte automatiquement les utilisateurs après une période d\'inactivité.', 'fr-ca':'Déconnecte automatiquement les utilisateurs après une période d\'inactivité.', 'en-us':'Automatically log out users after a period of inactivity.', 'en-gb':'Automatically log out users after a period of inactivity.', 'en-ca':'Automatically log out users after a period of inactivity.' },
+  settingsEnabled:   { 'fr-fr':'Activé', 'fr-ca':'Activé', 'en-us':'Enabled', 'en-gb':'Enabled', 'en-ca':'Enabled' },
+  settingsOn:        { 'fr-fr':'✓ Activé', 'fr-ca':'✓ Activé', 'en-us':'✓ On', 'en-gb':'✓ On', 'en-ca':'✓ On' },
+  settingsOff:       { 'fr-fr':'Désactivé', 'fr-ca':'Désactivé', 'en-us':'Off', 'en-gb':'Off', 'en-ca':'Off' },
+  settingsTimeout:   { 'fr-fr':'Délai d\'inactivité', 'fr-ca':'Délai d\'inactivité', 'en-us':'Inactivity timeout', 'en-gb':'Inactivity timeout', 'en-ca':'Inactivity timeout' },
+  settingsWarning:   { 'fr-fr':'Avertissement avant', 'fr-ca':'Avertissement avant', 'en-us':'Warning before', 'en-gb':'Warning before', 'en-ca':'Warning before' },
+  settingsMinutes:   { 'fr-fr':'min', 'fr-ca':'min', 'en-us':'min', 'en-gb':'min', 'en-ca':'min' },
+  settingsSave:      { 'fr-fr':'Enregistrer', 'fr-ca':'Sauvegarder', 'en-us':'Save', 'en-gb':'Save', 'en-ca':'Save' },
+  settingsSaved:     { 'fr-fr':'Paramètres sauvegardés !', 'fr-ca':'Paramètres sauvegardés !', 'en-us':'Settings saved!', 'en-gb':'Settings saved!', 'en-ca':'Settings saved!' },
+
   // Language picker
+
   languageModalTitle:{ 'fr-fr':'🌐 Choisir la langue', 'fr-ca':'🌐 Choisir la langue', 'en-us':'🌐 Choose Language', 'en-gb':'🌐 Choose Language', 'en-ca':'🌐 Choose Language' },
   languageSaving:    { 'fr-fr':'Sauvegarde...', 'fr-ca':'Sauvegarde...', 'en-us':'Saving...', 'en-gb':'Saving...', 'en-ca':'Saving...' },
   languageSaved:     { 'fr-fr':'✓ Langue mise à jour !', 'fr-ca':'✓ Langue mise à jour !', 'en-us':'✓ Language updated!', 'en-gb':'✓ Language updated!', 'en-ca':'✓ Language updated!' },

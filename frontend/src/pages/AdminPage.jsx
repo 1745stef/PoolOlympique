@@ -10,7 +10,7 @@ const MEDALS_BASE = [
   { key: 'bronze', points: 1, color: '#cd7f32' },
 ];
 
-export default function AdminPage() {
+export default function AdminPage({ onSettingsChange }) {
   const { t, lang } = useLang();
 
   const MEDALS = [
@@ -19,23 +19,43 @@ export default function AdminPage() {
     { ...MEDALS_BASE[2], label: t('bronze'), icon: '🥉' },
   ];
 
-  const [tab, setTab] = useState('results');
+  const myLevel = (() => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return 99;
+      // base64url → base64 standard
+      const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(base64));
+      return payload.role_level ?? (payload.is_admin ? 2 : 99);
+    } catch { return 99; }
+  })();
+
+  const isSuperAdmin = myLevel <= 1;
+  const isAdmin      = myLevel <= 2;
+  const isCaptain    = myLevel <= 3;
+
+  const [tab, setTab]               = useState(myLevel <= 2 ? 'results' : 'groups');
   const [disciplines, setDisciplines] = useState([]);
-  const [countries, setCountries]     = useState([]);
-  const [results, setResults]         = useState({});
-  const [users, setUsers]             = useState([]);
-  const [groups, setGroups]           = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [search, setSearch]           = useState('');
-  const [saving, setSaving]           = useState(null);
+  const [countries, setCountries]   = useState([]);
+  const [results, setResults]       = useState({});
+  const [users, setUsers]           = useState([]);
+  const [groups, setGroups]         = useState([]);
+  const [roles, setRoles]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [search, setSearch]         = useState('');
+  const [saving, setSaving]         = useState(null);
   const [notification, setNotification] = useState(null);
-  const [editing, setEditing]         = useState(null);
+  const [editing, setEditing]       = useState(null);
   const [countrySearch, setCountrySearch] = useState('');
   const [fetchingResults, setFetchingResults] = useState(false);
   const [tempPwdUser, setTempPwdUser] = useState(null);
-  const [tempPwd, setTempPwd]         = useState('');
+  const [tempPwd, setTempPwd]       = useState('');
   const [generatedPwd, setGeneratedPwd] = useState(null);
   const [newGroupName, setNewGroupName] = useState('');
+  const [settings, setSettings]     = useState({ inactivity_enabled: true, inactivity_timeout: 30, inactivity_warning: 2 });
+  const [settingsSaved, setSettingsSaved] = useState(false);
+
+  // Rôle de l'utilisateur courant depuis le JWT (injecté via useAuth → App)
 
   const notify = (msg, type = 'success') => {
     setNotification({ msg, type });
@@ -45,32 +65,46 @@ export default function AdminPage() {
   useEffect(() => {
     setDisciplines(LA28_DISCIPLINES);
 
-    // Appels backend — indépendants de l'API externe Codante
-    Promise.all([adminApi.getResults(), adminApi.getUsers(), groupsApi.getAll()])
-      .then(([res, usrs, grps]) => {
-        const map = {};
-        res.forEach(r => { map[r.discipline_id] = r; });
-        setResults(map);
-        setUsers(usrs);
+    // Appels selon le niveau
+    // Tous les niveaux ont besoin de users (pour ajouter des membres aux groupes)
+    const backendCalls = [groupsApi.getAll(), adminApi.getUsers()];
+    if (isAdmin) backendCalls.push(adminApi.getResults(), adminApi.getRoles());
+    if (isSuperAdmin) backendCalls.push(adminApi.getSettings());
+
+    Promise.all(backendCalls)
+      .then((results_arr) => {
+        let idx = 0;
+        const grps = results_arr[idx++];
+        const usrs = results_arr[idx++];
         setGroups(grps);
+        setUsers(usrs);
+        if (isAdmin) {
+          const res = results_arr[idx++];
+          const rls = results_arr[idx++];
+          const map = {};
+          res.forEach(r => { map[r.discipline_id] = r; });
+          setResults(map);
+          setRoles(rls);
+        }
+        if (isSuperAdmin) {
+          const s = results_arr[idx++];
+          if (s) setSettings(s);
+        }
       })
       .catch(e => console.error('Erreur chargement admin:', e))
       .finally(() => setLoading(false));
 
-    // Appel Codante séparé — son échec ne bloque pas le reste
     olympicApi.getCountries()
       .then(ctries => setCountries(ctries))
       .catch(() => {});
   }, []);
 
+  // ── Podiums ─────────────────────────────────────────────────────────────────
   const savePodium = async (disciplineId, podium) => {
     setSaving(disciplineId);
     try {
       await adminApi.upsertResult(disciplineId, podium.gold || null, podium.silver || null, podium.bronze || null);
-      setResults(prev => ({
-        ...prev,
-        [disciplineId]: { discipline_id: disciplineId, gold_country_id: podium.gold || null, silver_country_id: podium.silver || null, bronze_country_id: podium.bronze || null },
-      }));
+      setResults(prev => ({ ...prev, [disciplineId]: { discipline_id: disciplineId, gold_country_id: podium.gold || null, silver_country_id: podium.silver || null, bronze_country_id: podium.bronze || null } }));
       notify(t('adminPodiumSaved'));
     } catch (e) { notify(e.message, 'error'); }
     finally { setSaving(null); }
@@ -79,15 +113,12 @@ export default function AdminPage() {
   const handlePickMedal = async (disciplineId, medalKey, countryId) => {
     const current = results[disciplineId] || {};
     const podium = { gold: current.gold_country_id || null, silver: current.silver_country_id || null, bronze: current.bronze_country_id || null };
-    if (podium[medalKey] === countryId) { podium[medalKey] = null; }
-    else { podium[medalKey] = countryId; }
+    podium[medalKey] = podium[medalKey] === countryId ? null : countryId;
     if (!podium.gold && !podium.silver && !podium.bronze) {
       setSaving(disciplineId);
       try { await adminApi.deleteResult(disciplineId); setResults(prev => { const n = { ...prev }; delete n[disciplineId]; return n; }); notify(t('adminResultErased'), 'info'); }
       catch (e) { notify(e.message, 'error'); } finally { setSaving(null); }
-    } else {
-      await savePodium(disciplineId, podium);
-    }
+    } else { await savePodium(disciplineId, podium); }
     setEditing(null);
   };
 
@@ -117,14 +148,21 @@ export default function AdminPage() {
     finally { setFetchingResults(false); }
   };
 
-  const handleToggleAdmin = async (userId, currentVal) => {
+  // ── Rôles ────────────────────────────────────────────────────────────────────
+  const handleSetRole = async (userId, roleId) => {
     try {
-      const updated = await adminApi.toggleAdmin(userId, !currentVal);
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_admin: updated.is_admin } : u));
+      const updated = await adminApi.setUserRole(userId, roleId);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role_id: updated.role_id, roles: updated.roles } : u));
       notify(t('adminRoleUpdated'));
     } catch (e) { notify(e.message, 'error'); }
   };
 
+  // Rôles attribuables par l'utilisateur courant (seulement les niveaux > myLevel)
+  const assignableRoles = roles.filter(r => r.level > myLevel);
+  // Rôle "joueur" (sans rôle) — toujours assignable
+  const playerOption = { id: null, name: t('adminRolePlayer'), level: 99 };
+
+  // ── Users ────────────────────────────────────────────────────────────────────
   const handleDeleteUser = async (userId, username) => {
     if (!confirm(t('adminDeleteUserConfirm', { username }))) return;
     try {
@@ -143,6 +181,7 @@ export default function AdminPage() {
     } catch (e) { notify(e.message, 'error'); }
   };
 
+  // ── Groups ───────────────────────────────────────────────────────────────────
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
     try {
@@ -181,8 +220,35 @@ export default function AdminPage() {
     } catch (e) { notify(e.message, 'error'); }
   };
 
+  // ── Settings ─────────────────────────────────────────────────────────────────
+  const handleSaveSettings = async () => {
+    try {
+      const updated = await adminApi.updateSettings(settings);
+      setSettings(updated);
+      if (onSettingsChange) onSettingsChange(updated);
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 3000);
+    } catch (e) { notify(e.message, 'error'); }
+  };
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
   const getCountry = id => countries.find(c => c.id === id);
   const getCountryLang = id => { const c = countries.find(x => x.id === id); return getCountryNameLang(id, c?.name, lang); };
+  const getRoleName = (user) => {
+    if (user.roles?.name) return t(`role_${user.roles.name}`) || user.roles.name;
+    return t('adminRolePlayer');
+  };
+  const getRoleBadgeClass = (level) => {
+    if (level === 1) return 'role-badge superadmin';
+    if (level === 2) return 'role-badge admin';
+    if (level === 3) return 'role-badge captain';
+    return 'role-badge player';
+  };
+  const canManageUser = (targetUser) => {
+    const targetLevel = targetUser.roles?.level ?? 99;
+    return targetLevel > myLevel && targetUser.id !== undefined;
+  };
+
   const completedCount = Object.keys(results).length;
   const filteredDisciplines = disciplines.filter(d => {
     const name = lang.startsWith('fr') ? d.nameFR : (d.nameEN || d.nameFR);
@@ -196,6 +262,7 @@ export default function AdminPage() {
     <div className="admin-page">
       {notification && <div className={`notification notification-${notification.type}`}>{notification.msg}</div>}
 
+      {/* Mot de passe temporaire */}
       {tempPwdUser && (
         <div className="modal-overlay" onClick={() => { setTempPwdUser(null); setTempPwd(''); setGeneratedPwd(null); }}>
           <div className="modal-card" onClick={e => e.stopPropagation()}>
@@ -223,38 +290,31 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="admin-stats">
-        <div className="stat-card"><span className="stat-value gold">{completedCount}</span><span className="stat-label">{t('adminPodiumsEntered')}</span></div>
-        <div className="stat-card"><span className="stat-value">{disciplines.length - completedCount}</span><span className="stat-label">{t('adminRemaining')}</span></div>
-        <div className="stat-card"><span className="stat-value">{users.length}</span><span className="stat-label">{t('adminParticipants')}</span></div>
-        <div className="stat-card">
-          <div className="stat-progress-bar"><div className="stat-progress-fill" style={{ width: `${(completedCount / Math.max(disciplines.length, 1)) * 100}%` }} /></div>
-          <span className="stat-label">{Math.round((completedCount / Math.max(disciplines.length, 1)) * 100)}{t('adminCompleted')}</span>
-        </div>
-      </div>
-
-      <div className="points-legend">
-        <span className="legend-title">{t('adminScale')}</span>
-        {MEDALS.map(m => <span key={m.key} className="legend-item" style={{ '--medal-color': m.color }}>{m.icon} {m.label} = <strong>{m.points} pts</strong></span>)}
-        <span className="legend-note">{t('adminScaleNote')}</span>
-      </div>
-
+      {/* Barre d'onglets */}
       <div className="admin-tabs">
-        <button className={tab === 'results' ? 'active' : ''} onClick={() => setTab('results')}>{t('adminTabResults', { done: completedCount, total: disciplines.length })}</button>
-        <button className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}>{t('adminTabUsers', { count: users.length })}</button>
-        <button className={tab === 'groups' ? 'active' : ''} onClick={() => setTab('groups')}>{t('adminTabGroups', { count: groups.length })}</button>
+        {isAdmin   && <button className={tab === 'results'  ? 'active' : ''} onClick={() => setTab('results')}>{t('adminTabResults', { done: completedCount, total: disciplines.length })}</button>}
+        {isAdmin   && <button className={tab === 'users'    ? 'active' : ''} onClick={() => setTab('users')}>{t('adminTabUsers', { count: users.length })}</button>}
+        {isCaptain && <button className={tab === 'groups'   ? 'active' : ''} onClick={() => setTab('groups')}>{t('adminTabGroups', { count: groups.length })}</button>}
+        {isSuperAdmin && <button className={tab === 'settings' ? 'active' : ''} onClick={() => setTab('settings')}>{t('adminTabSettings')}</button>}
       </div>
 
+      {/* ── Onglet Résultats ── */}
       {tab === 'results' && (
         <div className="admin-results">
+          <div className="admin-stats">
+            <div className="stat-card"><span className="stat-value gold">{completedCount}</span><span className="stat-label">{t('adminPodiumsEntered')}</span></div>
+            <div className="stat-card"><span className="stat-value">{disciplines.length - completedCount}</span><span className="stat-label">{t('adminRemaining')}</span></div>
+            <div className="stat-card">
+              <div className="stat-progress-bar"><div className="stat-progress-fill" style={{ width: `${(completedCount / Math.max(disciplines.length, 1)) * 100}%` }} /></div>
+              <span className="stat-label">{Math.round((completedCount / Math.max(disciplines.length, 1)) * 100)}{t('adminCompleted')}</span>
+            </div>
+          </div>
           <div className="results-toolbar">
-            <input className="search-input" style={{ flex: 1 }} type="text" placeholder={t('adminSearchDiscipline')}
-              value={search} onChange={e => setSearch(e.target.value)} />
+            <input className="search-input" style={{ flex: 1 }} type="text" placeholder={t('adminSearchDiscipline')} value={search} onChange={e => setSearch(e.target.value)} />
             <button className={`btn-fetch ${fetchingResults ? 'loading' : ''}`} onClick={handleFetchResults} disabled={fetchingResults}>
               {fetchingResults ? t('adminImporting') : t('adminImportBtn')}
             </button>
           </div>
-
           <div className="results-grid">
             {filteredDisciplines.map(disc => {
               const r = results[disc.id];
@@ -312,32 +372,55 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* ── Onglet Joueurs ── */}
       {tab === 'users' && (
         <div className="admin-users">
           <div className="users-table">
-            <div className="users-header"><span>{t('adminUsersHeader')}</span><span>{t('adminUsersRegistered')}</span><span>{t('adminUsersRole')}</span><span>{t('adminUsersActions')}</span></div>
-            {users.map(u => (
-              <div key={u.id} className={`user-row ${u.is_admin ? 'is-admin' : ''}`}>
-                <span className="user-name">
-                  {u.username}
-                  {u.is_admin && <span className="admin-badge">{t('adminRoleAdmin')}</span>}
-                  {u.must_change_password && <span className="temp-badge">{t('adminTempBadge')}</span>}
-                </span>
-                <span className="user-date">{new Date(u.created_at).toLocaleDateString(lang)}</span>
-                <span className="user-role">{u.is_admin ? t('adminRoleAdmin') : t('adminRolePlayer')}</span>
-                <div className="user-actions">
-                  <button className="btn-temp-pwd" onClick={() => { setTempPwdUser(u); setTempPwd(''); setGeneratedPwd(null); }} title={t('adminTempPwdTitle')}>🔑</button>
-                  <button className={`btn-toggle-admin ${u.is_admin ? 'revoke' : 'grant'}`} onClick={() => handleToggleAdmin(u.id, u.is_admin)}>
-                    {u.is_admin ? t('adminRevoke') : t('adminPromote')}
-                  </button>
-                  <button className="btn-delete-user" onClick={() => handleDeleteUser(u.id, u.username)} title="Supprimer">🗑</button>
+            <div className="users-header">
+              <span>{t('adminUsersHeader')}</span>
+              <span>{t('adminUsersRegistered')}</span>
+              <span>{t('adminUsersRole')}</span>
+              <span>{t('adminUsersActions')}</span>
+            </div>
+            {users.map(u => {
+              const targetLevel = u.roles?.level ?? 99;
+              const canManage = canManageUser(u);
+              return (
+                <div key={u.id} className={`user-row role-level-${targetLevel}`}>
+                  <span className="user-name">
+                    {u.username}
+                    {targetLevel <= 3 && <span className={getRoleBadgeClass(targetLevel)}>{getRoleName(u)}</span>}
+                    {u.must_change_password && <span className="temp-badge">{t('adminTempBadge')}</span>}
+                  </span>
+                  <span className="user-date">{new Date(u.created_at).toLocaleDateString(lang)}</span>
+                  <span className="user-role">{getRoleName(u)}</span>
+                  <div className="user-actions">
+                    {canManage && (
+                      <>
+                        <button className="btn-temp-pwd" onClick={() => { setTempPwdUser(u); setTempPwd(''); setGeneratedPwd(null); }} title={t('adminTempPwdTitle')}>🔑</button>
+                        <select
+                          className="role-select"
+                          value={u.role_id || ''}
+                          onChange={e => handleSetRole(u.id, e.target.value || null)}
+                          title={t('adminUsersRole')}
+                        >
+                          <option value="">{t('adminRolePlayer')}</option>
+                          {assignableRoles.map(r => (
+                            <option key={r.id} value={r.id}>{t(`role_${r.name}`) || r.name}</option>
+                          ))}
+                        </select>
+                        <button className="btn-delete-user" onClick={() => handleDeleteUser(u.id, u.username)} title="Supprimer">🗑</button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
+      {/* ── Onglet Groupes ── */}
       {tab === 'groups' && (
         <div className="admin-groups">
           <div className="create-group-row">
@@ -346,7 +429,6 @@ export default function AdminPage() {
               onKeyDown={e => e.key === 'Enter' && handleCreateGroup()} />
             <button className="btn-create-group" onClick={handleCreateGroup}>{t('adminCreateGroup')}</button>
           </div>
-
           <div className="groups-list">
             {groups.length === 0 && <div className="empty-state"><p>{t('adminNoGroups')}</p></div>}
             {groups.map(group => {
@@ -377,6 +459,47 @@ export default function AdminPage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Onglet Paramètres (superadmin seulement) ── */}
+      {tab === 'settings' && isSuperAdmin && (
+        <div className="admin-settings">
+          <div className="settings-card">
+            <h3 className="settings-title">⏱️ {t('settingsInactivityTitle')}</h3>
+            <p className="settings-desc">{t('settingsInactivityDesc')}</p>
+            <div className="settings-row">
+              <label className="settings-label">{t('settingsEnabled')}</label>
+              <button className={`toggle-btn ${settings.inactivity_enabled ? 'on' : 'off'}`}
+                onClick={() => setSettings(s => ({ ...s, inactivity_enabled: !s.inactivity_enabled }))}>
+                {settings.inactivity_enabled ? t('settingsOn') : t('settingsOff')}
+              </button>
+            </div>
+            <div className={`settings-fields ${!settings.inactivity_enabled ? 'disabled' : ''}`}>
+              <div className="settings-row">
+                <label className="settings-label">{t('settingsTimeout')}</label>
+                <div className="settings-input-group">
+                  <input type="number" min="1" className="settings-input" value={settings.inactivity_timeout}
+                    disabled={!settings.inactivity_enabled}
+                    onChange={e => setSettings(s => ({ ...s, inactivity_timeout: parseInt(e.target.value) || 1 }))} />
+                  <span className="settings-unit">{t('settingsMinutes')}</span>
+                </div>
+              </div>
+              <div className="settings-row">
+                <label className="settings-label">{t('settingsWarning')}</label>
+                <div className="settings-input-group">
+                  <input type="number" min="1" className="settings-input" value={settings.inactivity_warning}
+                    disabled={!settings.inactivity_enabled}
+                    onChange={e => setSettings(s => ({ ...s, inactivity_warning: parseInt(e.target.value) || 1 }))} />
+                  <span className="settings-unit">{t('settingsMinutes')}</span>
+                </div>
+              </div>
+            </div>
+            <div className="settings-footer">
+              {settingsSaved && <span className="settings-saved">✓ {t('settingsSaved')}</span>}
+              <button className="btn-primary" onClick={handleSaveSettings}>{t('settingsSave')}</button>
+            </div>
           </div>
         </div>
       )}

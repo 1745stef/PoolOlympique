@@ -87,10 +87,10 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
 /* ── App Shell ─────────────────────────────────────────── */
 .app { min-height: 100vh; display: flex; flex-direction: column; }
 
+.app-top { position: sticky; top: 0; z-index: 100; }
 .app-header {
   background: var(--la-black); border-bottom: 2px solid var(--la-coral);
   padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
-  position: sticky; top: 0; z-index: 100;
 }
 
 .header-left { display: flex; align-items: center; gap: 14px; }
@@ -106,7 +106,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
 .btn-logout:hover { background: rgba(232,57,14,0.2); }
 
 /* ── Nav ──────────────────────────────────────────────── */
-.app-nav { background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; padding: 0 24px; position: sticky; top: 57px; z-index: 99; }
+.app-nav { background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 0 24px; z-index: 99; scrollbar-width: none; }
+.app-nav::-webkit-scrollbar { display: none; }
 .app-nav button { background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--muted); padding: 14px 20px; font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.2s; margin-bottom: -1px; }
 .app-nav button.active { color: var(--la-coral); border-bottom-color: var(--la-coral); }
 .app-nav button.admin-tab.active { color: var(--la-gold); border-bottom-color: var(--la-gold); }
@@ -532,6 +533,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
 }
 .day-header.today { border-bottom-color: var(--la-coral); }
 .day-label { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; color: var(--la-white); }
+.day-label-date { font-family: 'Outfit', sans-serif; font-size: 0.8rem; color: var(--muted); font-weight: 400; margin-left: 6px; letter-spacing: 0; }
 .day-full-date { font-size: 0.85rem; color: var(--muted); }
 .today-badge {
   margin-left: auto; background: rgba(232,57,14,0.15);
@@ -613,7 +615,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
   .btn-logout { padding: 5px 10px; font-size: 0.75rem; }
 
   /* Nav */
-  .app-nav { padding: 0 4px; overflow-x: auto; }
+  .app-nav { padding: 0 4px; overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; }
   .app-nav button { padding: 11px 12px; font-size: 0.82rem; white-space: nowrap; }
 
   /* Main */
@@ -1056,7 +1058,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-se
 
 /* ── Nav sticky mobile ── */
 @media (max-width: 640px) {
-  .app-nav { top: 52px; }
 }
 
 /* ════════════════════════════════════════════════════════
@@ -1392,4 +1393,76 @@ div:hover > .avatar-crop-hover {
 
 .auth-card {
   position: relative;
+}
+
+/* ─── Admin Settings ──────────────────────────────────────────────────────── */
+.admin-settings { max-width: 520px; }
+.settings-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 32px; }
+.settings-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 2px; color: var(--la-white); margin-bottom: 6px; }
+.settings-desc { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; line-height: 1.5; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.settings-label { color: var(--la-white); font-size: 0.9rem; font-weight: 500; }
+.settings-fields { transition: opacity 0.2s; }
+.settings-fields.disabled { opacity: 0.4; pointer-events: none; }
+.settings-input-group { display: flex; align-items: center; gap: 8px; }
+.settings-input { width: 80px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; color: var(--la-white); font-family: 'Outfit', sans-serif; font-size: 1rem; padding: 7px 12px; text-align: center; }
+.settings-input:focus { outline: none; border-color: var(--la-coral); }
+.settings-unit { color: var(--muted); font-size: 0.85rem; }
+.toggle-btn { padding: 7px 18px; border-radius: 20px; font-family: 'Outfit', sans-serif; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1.5px solid; transition: all 0.2s; }
+.toggle-btn.on  { background: rgba(0,180,100,0.15); border-color: rgba(0,180,100,0.5); color: #4ddc8e; }
+.toggle-btn.off { background: rgba(255,255,255,0.05); border-color: var(--border); color: var(--muted); }
+.settings-footer { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+.settings-saved { color: #4ddc8e; font-size: 0.85rem; font-weight: 500; }
+
+/* ─── Inactivity Warning Modal ────────────────────────────────────────────── */
+.inactivity-modal { text-align: center; }
+.inactivity-icon { font-size: 2.5rem; margin-bottom: 12px; }
+.inactivity-modal h3 { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 2px; color: var(--la-white); margin-bottom: 8px; }
+.inactivity-modal p { color: var(--muted); font-size: 0.9rem; margin-bottom: 0; }
+.inactivity-countdown { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; color: var(--la-coral); letter-spacing: 3px; margin: 16px 0; line-height: 1; }
+
+/* ─── Role badges ─────────────────────────────────────────────────────────── */
+.role-badge { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 10px; text-transform: uppercase; }
+.role-badge.superadmin { background: rgba(255,50,50,0.2);   border: 1px solid rgba(255,50,50,0.5);   color: #ff6666; }
+.role-badge.admin      { background: rgba(245,166,35,0.2);  border: 1px solid rgba(245,166,35,0.4);  color: var(--la-gold-l); }
+.role-badge.captain    { background: rgba(0,180,180,0.2);   border: 1px solid rgba(0,180,180,0.4);   color: #4ddce0; }
+.role-badge.player     { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--muted); }
+
+/* Row highlight par niveau */
+.user-row.role-level-1 { border-left: 3px solid #ff6666; }
+.user-row.role-level-2 { border-left: 3px solid var(--la-gold); }
+.user-row.role-level-3 { border-left: 3px solid #4ddce0; }
+
+/* Role select */
+.role-select { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; color: var(--la-white); font-family: 'Outfit', sans-serif; font-size: 0.78rem; padding: 5px 8px; cursor: pointer; }
+.role-select:focus { outline: none; border-color: var(--la-coral); }
+
+/* ─── Picks header étendu ────────────────────────────────────────────────── */
+.picks-header-info { flex: 1; }
+.picks-header-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.picks-scale-mini { display: flex; gap: 12px; margin-top: 6px; }
+.picks-scale-mini span { font-size: 0.8rem; color: var(--muted); }
+.picks-scale-mini strong { color: var(--la-white); }
+
+.rules-toggle-btn { background: rgba(255,255,255,0.08); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; color: var(--la-white); font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.2s; }
+.rules-toggle-btn:hover { background: rgba(255,255,255,0.15); }
+
+/* ─── Règles dépliables ──────────────────────────────────────────────────── */
+.picks-rules { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; animation: fadeIn 0.2s ease; }
+.rules-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 2px; color: var(--la-white); margin-bottom: 16px; }
+.rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.rule-item { display: flex; gap: 12px; align-items: flex-start; }
+.rule-item.rule-example { grid-column: 1 / -1; background: rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; border: 1px solid var(--border); }
+.rule-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
+.rule-item strong { display: block; color: var(--la-white); font-size: 0.88rem; margin-bottom: 4px; }
+.rule-item p { color: var(--muted); font-size: 0.82rem; line-height: 1.5; margin: 0; }
+.rules-scale { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.scale-item { font-size: 0.82rem; padding: 3px 10px; border-radius: 20px; }
+.scale-item.gold   { background: rgba(212,160,23,0.15); color: #f0c040; }
+.scale-item.silver { background: rgba(184,192,204,0.15); color: #b8c0cc; }
+.scale-item.bronze { background: rgba(205,127,50,0.15); color: #cd7f32; }
+
+@media (max-width: 600px) {
+  .rules-grid { grid-template-columns: 1fr; }
+  .rule-item.rule-example { grid-column: 1; }
 }

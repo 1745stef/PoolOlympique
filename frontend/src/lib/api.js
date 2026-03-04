@@ -35,6 +35,7 @@ export const authApi = {
   uploadAvatar:      (base64, contentType, originalBase64, originalContentType) => apiFetch('/auth/avatar/upload', { method: 'POST', body: JSON.stringify({ base64, contentType, originalBase64, originalContentType }) }),
   fetchImageAsBase64:(url) => apiFetch('/auth/avatar/fetch-image', { method: 'POST', body: JSON.stringify({ url }) }),
   setLanguage:       (language) => apiFetch('/auth/language', { method: 'PUT', body: JSON.stringify({ language }) }),
+  logout:            () => apiFetch('/auth/logout', { method: 'POST' }),
 };
 
 export const picksApi = {
@@ -64,10 +65,17 @@ export const adminApi = {
   upsertResult:   (discipline_id, gold, silver, bronze) =>
     apiFetch('/results', { method: 'POST', body: JSON.stringify({ discipline_id, gold_country_id: gold, silver_country_id: silver, bronze_country_id: bronze }) }),
   deleteResult:   (id)                => apiFetch(`/results/${id}`, { method: 'DELETE' }),
-  toggleAdmin:    (uid, is_admin)     => apiFetch(`/admin/users/${uid}`, { method: 'PUT', body: JSON.stringify({ is_admin }) }),
   deleteUser:     (uid)               => apiFetch(`/admin/users/${uid}`, { method: 'DELETE' }),
   setTempPassword:(uid, tmp)          => apiFetch(`/admin/users/${uid}/temp-password`, { method: 'POST', body: JSON.stringify({ temp_password: tmp }) }),
   fetchResults:   ()                  => apiFetch('/admin/fetch-results', { method: 'POST' }),
+  getSettings:    ()                  => apiFetch('/admin/settings'),
+  updateSettings: (data)              => apiFetch('/admin/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  getRoles:       ()                  => apiFetch('/admin/roles'),
+  setUserRole:    (uid, role_id)      => apiFetch(`/admin/users/${uid}/role`, { method: 'PUT', body: JSON.stringify({ role_id }) }),
+};
+
+export const settingsApi = {
+  get: () => apiFetch('/settings'),
 };
 
 // API Codante — uniquement pour les pays maintenant

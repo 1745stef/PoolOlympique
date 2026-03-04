@@ -15,34 +15,133 @@ app.use(express.urlencoded({ limit: '20mb', extended: true }));
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
 
+// ─── Blacklist tokens (mémoire) ───────────────────────────────────────────────
+const tokenBlacklist = new Set();
+
+// ─── Rôles (level bas = plus de droits) ──────────────────────────────────────
+// superadmin = 1, admin = 2, captain = 3, player = 99
+const ROLE_PLAYER = 99;
+
+// ─── Helpers rôles ────────────────────────────────────────────────────────────
+async function getRoles() {
+  const { data } = await supabase.from('roles').select('*').order('level');
+  return data || [];
+}
+
+async function getRoleById(id) {
+  const { data } = await supabase.from('roles').select('*').eq('id', id).single();
+  return data;
+}
+
+async function getUserWithRole(userId) {
+  const { data } = await supabase.from('users')
+    .select('*, roles(id, name, level, permissions)')
+    .eq('id', userId).single();
+  return data;
+}
+
+function userLevel(user) {
+  return user.roles?.level ?? ROLE_PLAYER;
+}
+
+function hasPermission(user, perm) {
+  const perms = user.roles?.permissions || {};
+  return perms[perm] === true;
+}
+
 // ─── Middlewares ──────────────────────────────────────────────────────────────
-function authMiddleware(req, res, next) {
+function extractToken(req, res) {
   const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Token manquant' });
-  try { req.user = jwt.verify(token, JWT_SECRET); next(); }
-  catch { res.status(401).json({ error: 'Token invalide' }); }
-}
-
-function adminMiddleware(req, res, next) {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Token manquant' });
+  if (!token) { res.status(401).json({ error: 'Token manquant' }); return null; }
+  if (tokenBlacklist.has(token)) { res.status(401).json({ error: 'Session expirée' }); return null; }
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
-    if (!req.user.is_admin) return res.status(403).json({ error: 'Accès admin requis' });
-    next();
-  } catch { res.status(401).json({ error: 'Token invalide' }); }
+    const user = jwt.verify(token, JWT_SECRET);
+    return { token, user };
+  } catch {
+    res.status(401).json({ error: 'Token invalide' });
+    return null;
+  }
 }
 
+function authMiddleware(req, res, next) {
+  const result = extractToken(req, res);
+  if (!result) return;
+  req.user = result.user;
+  req.token = result.token;
+  next();
+}
+
+// requireLevel(n) : autorise si role_level <= n (superadmin=1 passe partout)
+function requireLevel(level) {
+  return (req, res, next) => {
+    const result = extractToken(req, res);
+    if (!result) return;
+    req.user = result.user;
+    req.token = result.token;
+    if ((req.user.role_level ?? ROLE_PLAYER) > level) {
+      return res.status(403).json({ error: 'Permissions insuffisantes' });
+    }
+    next();
+  };
+}
+
+// requirePermission(perm) : vérifie une permission spécifique dans le JWT
+function requirePermission(perm) {
+  return (req, res, next) => {
+    const result = extractToken(req, res);
+    if (!result) return;
+    req.user = result.user;
+    req.token = result.token;
+    const perms = req.user.role_permissions || {};
+    if (perms[perm] !== true) {
+      return res.status(403).json({ error: 'Permissions insuffisantes' });
+    }
+    next();
+  };
+}
+
+// ─── makeToken ────────────────────────────────────────────────────────────────
 function makeToken(user) {
-  return jwt.sign(
-    { id: user.id, username: user.username, is_admin: user.is_admin || false, must_change_password: user.must_change_password || false, favorite_country: user.favorite_country || null, avatar_url: user.avatar_url || null, avatar_original_url: user.avatar_original_url || null, avatar_url_external: user.avatar_url_external || null, avatar_type: user.avatar_type || 'letter', avatar_color: user.avatar_color || '#000000', avatar_text_color: user.avatar_text_color || '#FFFFFF', language: user.language || 'fr-fr' },
-    JWT_SECRET, { expiresIn: '7d' }
-  );
+  const roleLevel = user.roles?.level ?? (user.is_admin ? 2 : ROLE_PLAYER);
+  const roleName  = user.roles?.name  ?? (user.is_admin ? 'admin' : 'player');
+  const roleId    = user.role_id ?? null;
+  const rolePerms = user.roles?.permissions ?? {};
+
+  return jwt.sign({
+    id: user.id,
+    username: user.username,
+    is_admin: roleLevel <= 2,          // rétrocompat
+    role_id: roleId,
+    role_name: roleName,
+    role_level: roleLevel,
+    role_permissions: rolePerms,
+    must_change_password: user.must_change_password || false,
+    favorite_country: user.favorite_country || null,
+    avatar_url: user.avatar_url || null,
+    avatar_original_url: user.avatar_original_url || null,
+    avatar_url_external: user.avatar_url_external || null,
+    avatar_type: user.avatar_type || 'letter',
+    avatar_color: user.avatar_color || '#000000',
+    avatar_text_color: user.avatar_text_color || '#FFFFFF',
+    language: user.language || 'fr-fr',
+  }, JWT_SECRET, { expiresIn: '7d' });
 }
 
 function safeUser(user) {
   const { password_hash, temp_password_hash, ...safe } = user;
   return safe;
+}
+
+// ─── Settings helpers ─────────────────────────────────────────────────────────
+async function getSettings() {
+  const { data } = await supabase.from('settings').select('*');
+  const map = {};
+  (data || []).forEach(s => { map[s.key] = s.value; });
+  return {
+    inactivity_enabled: map['inactivity_enabled'] !== 'false',
+    inactivity_timeout: parseInt(map['inactivity_timeout'] || '30', 10),
+    inactivity_warning: parseInt(map['inactivity_warning'] || '2', 10),
+  };
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -55,7 +154,7 @@ app.post('/auth/register', async (req, res) => {
   if (existing) return res.status(409).json({ error: "Nom d'utilisateur déjà pris" });
 
   const hash = await bcrypt.hash(password, 10);
-  const { data, error } = await supabase.from('users').insert({ username: username.toLowerCase(), password_hash: hash }).select().single();
+  const { data, error } = await supabase.from('users').insert({ username: username.toLowerCase(), password_hash: hash }).select('*, roles(id, name, level, permissions)').single();
   if (error) return res.status(500).json({ error: 'Erreur serveur' });
 
   res.json({ token: makeToken(data), user: safeUser(data) });
@@ -63,18 +162,15 @@ app.post('/auth/register', async (req, res) => {
 
 app.post('/auth/login', async (req, res) => {
   const { username, password } = req.body;
-  const { data: user } = await supabase.from('users').select('*').eq('username', username.toLowerCase()).single();
+  const { data: user } = await supabase.from('users').select('*, roles(id, name, level, permissions)').eq('username', username.toLowerCase()).single();
   if (!user) return res.status(401).json({ error: 'Identifiants invalides' });
 
-  // Vérifier mot de passe temporaire en premier
   if (user.temp_password_hash) {
     const tempValid = await bcrypt.compare(password, user.temp_password_hash);
     if (tempValid) {
-      // Forcer le changement de mot de passe
       await supabase.from('users').update({ must_change_password: true }).eq('id', user.id);
       user.must_change_password = true;
-      const token = makeToken(user);
-      return res.json({ token, user: safeUser(user) });
+      return res.json({ token: makeToken(user), user: safeUser(user) });
     }
   }
 
@@ -86,38 +182,37 @@ app.post('/auth/login', async (req, res) => {
 
 app.get('/auth/me', authMiddleware, async (req, res) => {
   const { data, error } = await supabase.from('users')
-    .select('id, username, is_admin, must_change_password, favorite_country, avatar_url, avatar_original_url, avatar_url_external, avatar_type, avatar_color, avatar_text_color, language')
+    .select('*, roles(id, name, level, permissions)')
     .eq('id', req.user.id).single();
   if (error) return res.status(500).json({ error: error?.message || String(error) });
-  const token = makeToken(data);
-  res.json({ user: data, token });
+  res.json({ user: safeUser(data), token: makeToken(data) });
 });
 
-// Changer son mot de passe (obligatoire si must_change_password)
+app.post('/auth/logout', authMiddleware, (req, res) => {
+  tokenBlacklist.add(req.token);
+  res.json({ success: true });
+});
+
 app.post('/auth/change-password', authMiddleware, async (req, res) => {
   const { new_password } = req.body;
   if (!new_password || new_password.length < 6) return res.status(400).json({ error: 'Mot de passe trop court (6 car. min)' });
-
   const hash = await bcrypt.hash(new_password, 10);
   const { data, error } = await supabase.from('users')
     .update({ password_hash: hash, must_change_password: false, temp_password_hash: null })
-    .eq('id', req.user.id).select().single();
+    .eq('id', req.user.id).select('*, roles(id, name, level, permissions)').single();
   if (error) return res.status(500).json({ error: error?.message || String(error) });
-
   res.json({ token: makeToken(data), user: safeUser(data) });
 });
 
-// ─── Préférence pays favori ──────────────────────────────────────────────────
 app.put('/auth/favorite-country', authMiddleware, async (req, res) => {
   const { country_id } = req.body;
   const { data, error } = await supabase.from('users')
     .update({ favorite_country: country_id || null })
-    .eq('id', req.user.id).select().single();
+    .eq('id', req.user.id).select('*, roles(id, name, level, permissions)').single();
   if (error) return res.status(500).json({ error: error?.message || String(error) });
-  res.json({ token: makeToken(data), user: { ...data } });
+  res.json({ token: makeToken(data), user: safeUser(data) });
 });
 
-// ─── Avatar ──────────────────────────────────────────────────────────────────
 app.put('/auth/avatar', authMiddleware, async (req, res) => {
   const { avatar_url, avatar_color, avatar_text_color, avatar_type, avatar_url_external } = req.body;
   const updates = {};
@@ -127,51 +222,61 @@ app.put('/auth/avatar', authMiddleware, async (req, res) => {
   if (avatar_type !== undefined)         updates.avatar_type = avatar_type;
   if (avatar_url_external !== undefined) updates.avatar_url_external = avatar_url_external || null;
   const { data, error } = await supabase.from('users')
-    .update(updates).eq('id', req.user.id).select().single();
+    .update(updates).eq('id', req.user.id).select('*, roles(id, name, level, permissions)').single();
   if (error) return res.status(500).json({ error: error?.message || String(error) });
-  res.json({ token: makeToken(data), user: { ...data } });
+  res.json({ token: makeToken(data), user: safeUser(data) });
 });
 
-// ─── Upload avatar via Supabase Storage ──────────────────────────────────────
 app.post('/auth/avatar/upload', authMiddleware, async (req, res) => {
   const { base64, contentType, originalBase64, originalContentType } = req.body;
   if (!base64 || !contentType) return res.status(400).json({ error: 'base64 et contentType requis' });
-
   const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
   if (!allowed.includes(contentType)) return res.status(400).json({ error: 'Format non supporté' });
-
   const buffer = Buffer.from(base64, 'base64');
   if (buffer.length > 10 * 1024 * 1024) return res.status(400).json({ error: 'Image trop grande (max 10MB)' });
-
-  // Sauvegarder le crop (avatar affiché)
   const cropPath = `${req.user.id}/avatar.png`;
-  const { error: upErr } = await supabase.storage.from('avatars')
-    .upload(cropPath, buffer, { contentType, upsert: true });
+  const { error: upErr } = await supabase.storage.from('avatars').upload(cropPath, buffer, { contentType, upsert: true });
   if (upErr) return res.status(500).json({ error: upErr.message });
-
   const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(cropPath);
   const avatar_url = urlData.publicUrl + '?t=' + Date.now();
-
   const updates = { avatar_url, avatar_type: 'upload' };
-
-  // Sauvegarder l'image originale (avant crop) — pour pouvoir recropper plus tard
   if (originalBase64 && originalContentType) {
     const origExt = originalContentType.split('/')[1].replace('jpeg', 'jpg');
     const origPath = `${req.user.id}/avatar_original.${origExt}`;
     const origBuffer = Buffer.from(originalBase64, 'base64');
-    const { error: origErr } = await supabase.storage.from('avatars')
-      .upload(origPath, origBuffer, { contentType: originalContentType, upsert: true });
+    const { error: origErr } = await supabase.storage.from('avatars').upload(origPath, origBuffer, { contentType: originalContentType, upsert: true });
     if (!origErr) {
       const { data: origUrl } = supabase.storage.from('avatars').getPublicUrl(origPath);
       updates.avatar_original_url = origUrl.publicUrl;
     }
   }
-
   const { data, error } = await supabase.from('users')
-    .update(updates).eq('id', req.user.id).select().single();
+    .update(updates).eq('id', req.user.id).select('*, roles(id, name, level, permissions)').single();
   if (error) return res.status(500).json({ error: error?.message || String(error) });
+  res.json({ token: makeToken(data), user: safeUser(data), avatar_url });
+});
 
-  res.json({ token: makeToken(data), user: { ...data }, avatar_url });
+app.put('/auth/language', authMiddleware, async (req, res) => {
+  const { language } = req.body;
+  const VALID_LANGS = ['fr-fr', 'fr-ca', 'en-us', 'en-gb', 'en-ca'];
+  if (!language || !VALID_LANGS.includes(language)) return res.status(400).json({ error: 'Langue invalide' });
+  const { data, error } = await supabase.from('users')
+    .update({ language }).eq('id', req.user.id).select('*, roles(id, name, level, permissions)').single();
+  if (error) return res.status(500).json({ error: error?.message || String(error) });
+  res.json({ token: makeToken(data), user: safeUser(data) });
+});
+
+app.post('/auth/avatar/fetch-image', authMiddleware, async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'URL requise' });
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return res.status(400).json({ error: 'Image inaccessible' });
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const buffer = await response.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+    res.json({ base64, contentType, dataUrl: `data:${contentType};base64,${base64}` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ─── Picks ────────────────────────────────────────────────────────────────────
@@ -202,9 +307,7 @@ app.delete('/picks/:discipline_id', authMiddleware, async (req, res) => {
   res.json({ success: true });
 });
 
-// ─── Scoring ──────────────────────────────────────────────────────────────────
-// Points additifs : or=5, argent=3, bronze=1
-// Un pays peut gagner plusieurs médailles → on additionne
+// ─── Leaderboard ──────────────────────────────────────────────────────────────
 function computePoints(pick_country, result) {
   if (!result || !pick_country) return 0;
   let pts = 0;
@@ -214,7 +317,6 @@ function computePoints(pick_country, result) {
   return pts;
 }
 
-// ─── Leaderboard ─────────────────────────────────────────────────────────────
 app.get('/leaderboard', async (req, res) => {
   const [{ data: picks, error: pe }, { data: results, error: re }, { data: users, error: ue }] = await Promise.all([
     supabase.from('picks').select('user_id, discipline_id, country_id, users(username)').order('user_id'),
@@ -225,7 +327,6 @@ app.get('/leaderboard', async (req, res) => {
   const resultMap = {};
   results.forEach(r => { resultMap[r.discipline_id] = r; });
   const scoredPicks = picks.map(p => ({ ...p, points: computePoints(p.country_id, resultMap[p.discipline_id]) }));
-  // Ajouter les users sans aucun pick
   const usersWithPicks = new Set(picks.map(p => p.user_id));
   const zeroPicks = users
     .filter(u => !usersWithPicks.has(u.id))
@@ -240,10 +341,9 @@ app.get('/results', async (req, res) => {
   res.json(data);
 });
 
-app.post('/results', adminMiddleware, async (req, res) => {
+app.post('/results', requireLevel(2), async (req, res) => {
   const { discipline_id, gold_country_id, silver_country_id, bronze_country_id } = req.body;
   if (!discipline_id) return res.status(400).json({ error: 'discipline_id requis' });
-  if (!gold_country_id && !silver_country_id && !bronze_country_id) return res.status(400).json({ error: 'Au moins une médaille requise' });
   const { data, error } = await supabase.from('results')
     .upsert({ discipline_id, gold_country_id: gold_country_id || null, silver_country_id: silver_country_id || null, bronze_country_id: bronze_country_id || null }, { onConflict: 'discipline_id' })
     .select().single();
@@ -251,14 +351,13 @@ app.post('/results', adminMiddleware, async (req, res) => {
   res.json(data);
 });
 
-app.delete('/results/:discipline_id', adminMiddleware, async (req, res) => {
+app.delete('/results/:discipline_id', requireLevel(2), async (req, res) => {
   const { error } = await supabase.from('results').delete().eq('discipline_id', req.params.discipline_id);
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json({ success: true });
 });
 
-// Fetch automatique résultats depuis Codante.io
-app.post('/admin/fetch-results', adminMiddleware, async (req, res) => {
+app.post('/admin/fetch-results', requireLevel(2), async (req, res) => {
   try {
     const response = await fetch('https://apis.codante.io/olympic-games/events?page=1');
     const json = await response.json();
@@ -280,41 +379,84 @@ app.post('/admin/fetch-results', adminMiddleware, async (req, res) => {
       imported++;
     }
     res.json({ success: true, imported });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Admin — Rôles ────────────────────────────────────────────────────────────
+app.get('/admin/roles', requireLevel(2), async (req, res) => {
+  const roles = await getRoles();
+  res.json(roles);
 });
 
 // ─── Admin — Users ────────────────────────────────────────────────────────────
-app.get('/admin/users', adminMiddleware, async (req, res) => {
-  const { data, error } = await supabase.from('users').select('id, username, is_admin, must_change_password, created_at').order('created_at');
+app.get('/admin/users', requireLevel(3), async (req, res) => {
+  const { data, error } = await supabase.from('users')
+    .select('id, username, role_id, must_change_password, created_at, roles(id, name, level)')
+    .order('created_at');
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json(data);
 });
 
-app.get('/admin/picks', adminMiddleware, async (req, res) => {
+app.get('/admin/picks', requireLevel(2), async (req, res) => {
   const { data, error } = await supabase.from('picks').select('*, users(username)').order('discipline_id');
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json(data);
 });
 
-app.put('/admin/users/:id', adminMiddleware, async (req, res) => {
-  const { is_admin } = req.body;
-  const { data, error } = await supabase.from('users').update({ is_admin }).eq('id', req.params.id).select().single();
+// Changer le rôle d'un utilisateur
+app.put('/admin/users/:id/role', requireLevel(2), async (req, res) => {
+  const { role_id } = req.body;
+  const myLevel = req.user.role_level ?? ROLE_PLAYER;
+
+  // Un superadmin ne peut pas modifier son propre rôle
+  if (req.params.id === req.user.id) {
+    return res.status(400).json({ error: 'Vous ne pouvez pas modifier votre propre rôle' });
+  }
+
+  // Vérifier que la cible n'a pas un niveau supérieur ou égal au demandeur
+  const targetUser = await getUserWithRole(req.params.id);
+  if (targetUser && userLevel(targetUser) <= myLevel) {
+    return res.status(403).json({ error: 'Vous ne pouvez pas modifier le rôle de cet utilisateur' });
+  }
+
+  // role_id null = retour au statut joueur (pas de rôle)
+  if (!role_id) {
+    const { data, error } = await supabase.from('users')
+      .update({ role_id: null }).eq('id', req.params.id)
+      .select('*, roles(id, name, level, permissions)').single();
+    if (error) return res.status(500).json({ error: error?.message || String(error) });
+    return res.json(data);
+  }
+
+  // Récupérer le rôle cible
+  const targetRole = await getRoleById(role_id);
+  if (!targetRole) return res.status(400).json({ error: 'Rôle invalide' });
+
+  // On ne peut pas attribuer un rôle de niveau >= au sien (ex: admin ne peut pas nommer superadmin)
+  if (targetRole.level <= myLevel) {
+    return res.status(403).json({ error: 'Vous ne pouvez pas attribuer un rôle supérieur ou égal au vôtre' });
+  }
+
+  const { data, error } = await supabase.from('users')
+    .update({ role_id }).eq('id', req.params.id)
+    .select('*, roles(id, name, level, permissions)').single();
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json(data);
 });
 
-// Supprimer un utilisateur
-app.delete('/admin/users/:id', adminMiddleware, async (req, res) => {
+app.delete('/admin/users/:id', requireLevel(2), async (req, res) => {
   if (req.params.id === req.user.id) return res.status(400).json({ error: 'Tu ne peux pas te supprimer toi-même' });
+  const myLevel = req.user.role_level ?? ROLE_PLAYER;
+  const targetUser = await getUserWithRole(req.params.id);
+  if (targetUser && userLevel(targetUser) <= myLevel) {
+    return res.status(403).json({ error: 'Vous ne pouvez pas supprimer cet utilisateur' });
+  }
   const { error } = await supabase.from('users').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json({ success: true });
 });
 
-// Définir un mot de passe temporaire
-app.post('/admin/users/:id/temp-password', adminMiddleware, async (req, res) => {
+app.post('/admin/users/:id/temp-password', requireLevel(2), async (req, res) => {
   const { temp_password } = req.body;
   if (!temp_password || temp_password.length < 4) return res.status(400).json({ error: 'Mot de passe trop court' });
   const hash = await bcrypt.hash(temp_password, 10);
@@ -323,16 +465,42 @@ app.post('/admin/users/:id/temp-password', adminMiddleware, async (req, res) => 
   res.json({ success: true, temp_password });
 });
 
+// ─── Admin — Settings (superadmin seulement) ─────────────────────────────────
+app.get('/admin/settings', requireLevel(1), async (req, res) => {
+  try { res.json(await getSettings()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/admin/settings', requireLevel(1), async (req, res) => {
+  const { inactivity_enabled, inactivity_timeout, inactivity_warning } = req.body;
+  const updates = [];
+  if (inactivity_enabled !== undefined) updates.push({ key: 'inactivity_enabled', value: String(inactivity_enabled) });
+  if (inactivity_timeout !== undefined) updates.push({ key: 'inactivity_timeout', value: String(inactivity_timeout) });
+  if (inactivity_warning !== undefined) updates.push({ key: 'inactivity_warning', value: String(inactivity_warning) });
+  for (const u of updates) await supabase.from('settings').upsert(u, { onConflict: 'key' });
+  res.json(await getSettings());
+});
+
+app.get('/settings', async (req, res) => {
+  try { res.json(await getSettings()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── Groupes ──────────────────────────────────────────────────────────────────
 app.get('/groups', authMiddleware, async (req, res) => {
   const { data, error } = await supabase.from('groups').select('*, group_members(user_id, users(username))').order('name');
   if (error) return res.status(500).json({ error: error?.message || String(error) });
-  if (req.user.is_admin) return res.json(data);
-  const userGroups = data.filter(g => (g.group_members || []).some(m => m.user_id === req.user.id));
+  const level = req.user.role_level ?? ROLE_PLAYER;
+  if (level <= 2) return res.json(data);
+  // Capitaine : groupes créés par lui OU dont il est membre
+  const userGroups = data.filter(g =>
+    g.created_by === req.user.id ||
+    (g.group_members || []).some(m => m.user_id === req.user.id)
+  );
   res.json(userGroups);
 });
 
-app.post('/groups', adminMiddleware, async (req, res) => {
+app.post('/groups', requireLevel(3), async (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'Nom requis' });
   const { data, error } = await supabase.from('groups').insert({ name, created_by: req.user.id }).select().single();
@@ -340,51 +508,42 @@ app.post('/groups', adminMiddleware, async (req, res) => {
   res.json(data);
 });
 
-app.delete('/groups/:id', adminMiddleware, async (req, res) => {
+app.delete('/groups/:id', requireLevel(3), async (req, res) => {
+  const level = req.user.role_level ?? ROLE_PLAYER;
+  if (level >= 3) {
+    // Capitaine : vérifier qu'il est propriétaire du groupe
+    const { data: grp } = await supabase.from('groups').select('created_by, group_members(user_id)').eq('id', req.params.id).single();
+    const isMember = (grp?.group_members || []).some(m => m.user_id === req.user.id);
+    if (!grp || (grp.created_by !== req.user.id && !isMember)) return res.status(403).json({ error: 'Vous ne pouvez supprimer que vos propres groupes' });
+  }
   const { error } = await supabase.from('groups').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json({ success: true });
 });
 
-app.post('/groups/:id/members', adminMiddleware, async (req, res) => {
+app.post('/groups/:id/members', requireLevel(3), async (req, res) => {
+  const level = req.user.role_level ?? ROLE_PLAYER;
+  if (level >= 3) {
+    const { data: grp } = await supabase.from('groups').select('created_by, group_members(user_id)').eq('id', req.params.id).single();
+    const isMember = (grp?.group_members || []).some(m => m.user_id === req.user.id);
+    if (!grp || (grp.created_by !== req.user.id && !isMember)) return res.status(403).json({ error: 'Vous ne pouvez gérer que vos propres groupes' });
+  }
   const { user_id } = req.body;
   const { error } = await supabase.from('group_members').upsert({ group_id: req.params.id, user_id }, { onConflict: 'group_id,user_id' });
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json({ success: true });
 });
 
-app.delete('/groups/:id/members/:user_id', adminMiddleware, async (req, res) => {
+app.delete('/groups/:id/members/:user_id', requireLevel(3), async (req, res) => {
+  const level = req.user.role_level ?? ROLE_PLAYER;
+  if (level >= 3) {
+    const { data: grp } = await supabase.from('groups').select('created_by, group_members(user_id)').eq('id', req.params.id).single();
+    const isMember = (grp?.group_members || []).some(m => m.user_id === req.user.id);
+    if (!grp || (grp.created_by !== req.user.id && !isMember)) return res.status(403).json({ error: 'Vous ne pouvez gérer que vos propres groupes' });
+  }
   const { error } = await supabase.from('group_members').delete().eq('group_id', req.params.id).eq('user_id', req.params.user_id);
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json({ success: true });
-});
-
-// ─── Préférence de langue ──────────────────────────────────────────────────────
-app.put('/auth/language', authMiddleware, async (req, res) => {
-  const { language } = req.body;
-  const VALID_LANGS = ['fr-fr', 'fr-ca', 'en-us', 'en-gb', 'en-ca'];
-  if (!language || !VALID_LANGS.includes(language)) return res.status(400).json({ error: 'Langue invalide' });
-  const { data, error } = await supabase.from('users')
-    .update({ language })
-    .eq('id', req.user.id).select().single();
-  if (error) return res.status(500).json({ error: error?.message || String(error) });
-  res.json({ token: makeToken(data), user: safeUser(data) });
-});
-
-// ─── Proxy image pour éviter le CORS dans le cropper ────────────────────────
-app.post('/auth/avatar/fetch-image', authMiddleware, async (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ error: 'URL requise' });
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return res.status(400).json({ error: 'Image inaccessible' });
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    const buffer = await response.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString('base64');
-    res.json({ base64, contentType, dataUrl: `data:${contentType};base64,${base64}` });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
