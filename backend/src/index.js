@@ -686,13 +686,24 @@ app.post('/chat/:room_id/upload', authMiddleware, upload.single('image'), async 
       stream.end(req.file.buffer);
     });
 
+    // Récupérer le profil pour les champs avatar
+    const { data: profile } = await supabase.from('users')
+      .select('avatar_url, avatar_type, avatar_color, avatar_text_color, role_id, roles(level)')
+      .eq('id', req.user.id).single();
+
     // Créer le message avec l'URL Cloudinary
     const { data, error } = await supabase.from('messages').insert({
-      room_id: req.params.room_id,
-      user_id: req.user.id,
-      content: result.secure_url,
-      is_image: true,
-    }).select('*, users(username, avatar_url, avatar_type, avatar_color, avatar_text_color, role_level)').single();
+      room_id:           req.params.room_id,
+      user_id:           req.user.id,
+      username:          req.user.username,
+      content:           result.secure_url,
+      is_image:          true,
+      role_level:        profile?.roles?.level ?? req.user.role_level ?? 99,
+      avatar_url:        profile?.avatar_url || null,
+      avatar_type:       profile?.avatar_type || 'letter',
+      avatar_color:      profile?.avatar_color || '#000000',
+      avatar_text_color: profile?.avatar_text_color || '#FFFFFF',
+    }).select().single();
 
     if (error) return res.status(500).json({ error: error.message });
     res.json({ data });

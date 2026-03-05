@@ -259,7 +259,8 @@ export default function ChatPage({ onUnreadChange }) {
     setMessages([]);
 
     supabase.from('messages')
-      .select('*').eq('room_id', activeRoom.id).is('deleted_at', null)
+      .select('*')
+      .eq('room_id', activeRoom.id).is('deleted_at', null)
       .order('created_at', { ascending: true }).limit(100)
       .then(({ data }) => {
         const msgs = data || [];
@@ -341,7 +342,10 @@ export default function ChatPage({ onUnreadChange }) {
       const formData = new FormData();
       formData.append('image', file, file.name);
       const { data } = await chatApi.uploadImage(activeRoom.id, formData);
-      if (data) setMessages(prev => [...prev, data]);
+      if (data) {
+        const flat = { ...data, ...(data.users || {}) };
+        setMessages(prev => [...prev, flat]);
+      }
       setTimeout(() => scrollToBottom('smooth'), 50);
     } catch (err) {
       console.error('Upload image:', err);
@@ -584,7 +588,7 @@ export default function ChatPage({ onUnreadChange }) {
 
                         {/* Bulle avec hover actions */}
                         <div className="msg-bubble-wrap">
-                          <div className={`msg-bubble${item.is_gif ? ' gif-bubble' : ''}`}>
+                          <div className={`msg-bubble${item.is_gif || item.is_image ? ' gif-bubble' : ''}`}>
                             {editingMsgId !== item.id && (
                               <div className={`msg-hover-actions ${isMe ? 'actions-left' : 'actions-right'}`}>
                                 {isMe && !item.is_gif && <button className="msg-action-btn" onClick={() => startEdit(item)} title="Modifier">✏️</button>}
