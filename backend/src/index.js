@@ -1,4 +1,6 @@
 import express from 'express';
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
 import ogs from 'open-graph-scraper';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
@@ -7,6 +9,23 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+// Config Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Multer en mémoire (pas de fichier temporaire sur disque)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Fichier non-image refusé'));
+    cb(null, true);
+  },
+});
 
 const app = express();
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
@@ -653,6 +672,34 @@ app.post('/chat/messages/:id/resolve', requireLevel(2), async (req, res) => {
 // Cache en mémoire pour les previews de liens
 const linkPreviewCache = new Map();
 
+
+// POST /chat/:room_id/upload — upload image vers Cloudinary
+app.post('/chat/:room_id/upload', authMiddleware, upload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Aucun fichier reçu' });
+  try {
+    // Upload vers Cloudinary via stream
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'chat-images', resource_type: 'image', transformation: [{ quality: 'auto', fetch_format: 'auto' }] },
+        (error, result) => error ? reject(error) : resolve(result)
+      );
+      stream.end(req.file.buffer);
+    });
+
+    // Créer le message avec l'URL Cloudinary
+    const { data, error } = await supabase.from('messages').insert({
+      room_id: req.params.room_id,
+      user_id: req.user.id,
+      content: result.secure_url,
+      is_image: true,
+    }).select('*, users(username, avatar_url, avatar_type, avatar_color, avatar_text_color, role_level)').single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 // GET /chat/link-preview?url=... — aperçu Open Graph d'un lien
 app.get('/chat/link-preview', authMiddleware, async (req, res) => {
   const { url } = req.query;

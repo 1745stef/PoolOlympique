@@ -2,16 +2,14 @@ const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 function getToken() { return localStorage.getItem('token'); }
 
-async function apiFetch(path, options = {}) {
+async function apiFetch(path, options = {}, isFormData = false) {
   const token = getToken();
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+  const headers = {
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+  const res = await fetch(`${BASE}${path}`, { ...options, headers });
   // Lire le corps comme texte d'abord pour éviter le crash si ce n'est pas du JSON
   const text = await res.text();
   let data;
@@ -106,6 +104,7 @@ export const chatApi = {
   getReports:     (room_id) => apiFetch(`/chat/${room_id}/reports`),
   resolveReport:  (msg_id) => apiFetch(`/chat/messages/${msg_id}/resolve`, { method: 'POST' }),
   getLinkPreview: (url) => apiFetch(`/chat/link-preview?url=${encodeURIComponent(url)}`),
+  uploadImage:    (room_id, formData) => apiFetch(`/chat/${room_id}/upload`, { method: 'POST', body: formData }, true),
   pinMessage:    (msg_id, pinned) => apiFetch(`/chat/messages/${msg_id}/pin`, { method: 'POST', body: JSON.stringify({ pinned }) }),
   getPinned:     (room_id) => apiFetch(`/chat/${room_id}/pinned`),
   deleteMessage:   (id)                    => apiFetch(`/chat/messages/${id}`, { method: 'DELETE' }),

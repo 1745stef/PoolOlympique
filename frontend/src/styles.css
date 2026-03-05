@@ -1751,3 +1751,8 @@ div:hover > .avatar-crop-hover {
 
 .msg-bubble > span.msg-content { display: block; }
 .msg-bubble > .link-preview { display: flex; margin-top: 6px; }
+
+/* ─── Image chat ─────────────────────────────────────────────────────────── */
+.img-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.msg-img { max-width: 220px; max-height: 300px; border-radius: 10px; display: block; cursor: pointer; transition: opacity 0.15s; object-fit: cover; }
+.msg-img:hover { opacity: 0.9; }

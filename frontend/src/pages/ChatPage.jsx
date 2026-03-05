@@ -141,6 +141,8 @@ export default function ChatPage({ onUnreadChange }) {
   const [showInputPicker, setShowInputPicker]       = useState(false);
   const [showGiphy, setShowGiphy]                   = useState(false);
   const [showScrollBtn, setShowScrollBtn]           = useState(false);
+  const [uploadingImg, setUploadingImg]             = useState(false);
+  const fileInputRef = useRef(null);
   const [unreadCount, setUnreadCount]               = useState(0);
   const [editingMsgId, setEditingMsgId]             = useState(null);
   const [firstUnreadIdx, setFirstUnreadIdx]         = useState(null);
@@ -329,6 +331,23 @@ export default function ChatPage({ onUnreadChange }) {
     setUnread(prev => ({ ...prev, [activeRoom.id]: 0 }));
     return () => { if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; } };
   }, [activeRoom?.id]);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeRoom) return;
+    e.target.value = '';
+    setUploadingImg(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file, file.name);
+      const { data } = await chatApi.uploadImage(activeRoom.id, formData);
+      if (data) setMessages(prev => [...prev, data]);
+      setTimeout(() => scrollToBottom('smooth'), 50);
+    } catch (err) {
+      console.error('Upload image:', err);
+    }
+    setUploadingImg(false);
+  };
 
   const scrollToMsg = (msgId) => {
     const el = document.getElementById(`msg-${msgId}`);
@@ -595,6 +614,8 @@ export default function ChatPage({ onUnreadChange }) {
                               </div>
                             ) : item.is_gif
                               ? <img src={item.content} alt="GIF" className="msg-gif" />
+                              : item.is_image
+                              ? <img src={item.content} alt="image" className="msg-img" onClick={() => window.open(item.content, '_blank')} />
                               : <>{!isEmojiOnly && URL_REGEX.test(item.content) && (
                                   <LinkPreview url={item.content.match(URL_REGEX)?.[0]} />
                                 )}
@@ -748,6 +769,10 @@ export default function ChatPage({ onUnreadChange }) {
                 )}
                 <button className="emoji-input-btn" onClick={() => { setShowInputPicker(v => !v); setShowGiphy(false); }}>😊</button>
                 <button className="emoji-input-btn gif-btn" onClick={() => { setShowGiphy(v => !v); setShowInputPicker(false); }}>GIF</button>
+                <button className="emoji-input-btn img-upload-btn" onClick={() => fileInputRef.current?.click()} disabled={uploadingImg} title="Envoyer une image">
+                  {uploadingImg ? '⏳' : '📷'}
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
                 <textarea ref={inputRef} className={`chat-input${adminMode ? ' admin-mode-input' : ''}`} value={input}
                   onChange={handleInputChange} onKeyDown={handleKeyDown}
                   placeholder={adminMode ? t('adminModePlaceholder') : t('chatPlaceholder')} rows={1} maxLength={1000} />
