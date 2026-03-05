@@ -624,6 +624,30 @@ app.post('/chat/:room_id/messages', authMiddleware, async (req, res) => {
 
 
 
+
+// GET /chat/:room_id/reports — signalements du salon (admin seulement)
+app.get('/chat/:room_id/reports', requireLevel(2), async (req, res) => {
+  const { data, error } = await supabase
+    .from('reports')
+    .select('id, message_id, reason, created_at, reported_by, users!reported_by(username)')
+    .eq('resolved', false)
+    .order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  // Filtrer par room_id en récupérant les messages
+  const msgIds = [...new Set((data || []).map(r => r.message_id))];
+  if (!msgIds.length) return res.json({ data: [] });
+  const { data: msgs } = await supabase.from('messages').select('id, room_id').in('id', msgIds);
+  const roomMsgIds = new Set((msgs || []).filter(m => m.room_id === req.params.room_id).map(m => m.id));
+  const filtered = (data || []).filter(r => roomMsgIds.has(r.message_id));
+  res.json({ data: filtered });
+});
+
+// POST /chat/messages/:id/resolve — approuver (effacer signalement)
+app.post('/chat/messages/:id/resolve', requireLevel(2), async (req, res) => {
+  const { error } = await supabase.from('reports').update({ resolved: true }).eq('message_id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
 // POST /chat/messages/:id/report — signaler un message
 app.post('/chat/messages/:id/report', authMiddleware, async (req, res) => {
   const { reason } = req.body;

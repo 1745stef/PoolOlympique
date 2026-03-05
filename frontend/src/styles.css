@@ -1722,3 +1722,20 @@ div:hover > .avatar-crop-hover {
 .msg-time { font-size: 0.65rem; color: var(--muted); margin-top: 2px; display: block; }
 .chat-msg.mine .msg-time  { text-align: right; }
 .chat-msg.theirs .msg-time { text-align: left; }
+
+/* ─── Barre signalements (admin) ────────────────────────────────────────── */
+.reports-bar { display: flex; align-items: center; gap: 8px; padding: 6px 16px; background: rgba(220,50,50,0.12); border-bottom: 1px solid rgba(220,50,50,0.3); font-size: 0.82rem; cursor: pointer; transition: background 0.15s; }
+.reports-bar:hover { background: rgba(220,50,50,0.2); }
+.reports-icon { font-size: 0.9rem; }
+.reports-label { color: #ff8080; font-weight: 500; }
+
+/* ─── Message signalé (admin) ───────────────────────────────────────────── */
+.chat-msg.reported .msg-bubble { border: 1.5px solid rgba(220,50,50,0.6) !important; background: rgba(220,50,50,0.08) !important; }
+.chat-msg.reported.mine .msg-bubble { border: 1.5px solid rgba(220,50,50,0.6) !important; }
+
+/* ─── Boutons modération ────────────────────────────────────────────────── */
+.report-actions { display: flex; gap: 6px; margin-top: 4px; }
+.report-approve { background: rgba(74,222,128,0.15); border: 1px solid rgba(74,222,128,0.4); color: #4ade80; border-radius: 6px; padding: 3px 10px; font-size: 0.78rem; cursor: pointer; transition: background 0.15s; }
+.report-approve:hover { background: rgba(74,222,128,0.25); }
+.report-delete  { background: rgba(220,50,50,0.15); border: 1px solid rgba(220,50,50,0.4); color: #ff8080; border-radius: 6px; padding: 3px 10px; font-size: 0.78rem; cursor: pointer; transition: background 0.15s; }
+.report-delete:hover  { background: rgba(220,50,50,0.25); }

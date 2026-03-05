@@ -59,6 +59,7 @@ const T = {
   chatDelete:        { 'fr-fr':'Supprimer le message', 'fr-ca':'Supprimer le message', 'en-us':'Delete message', 'en-gb':'Delete message', 'en-ca':'Delete message', 'als': 'Nochricht lösche' },
   chatDeleteConfirm: { 'fr-fr':'Supprimer ce message ?', 'fr-ca':'Supprimer ce message ?', 'en-us':'Delete this message?', 'en-gb':'Delete this message?', 'en-ca':'Delete this message?', 'als': 'Die Nochricht lösche ?' },
   mentionAll:       { 'fr-fr':'tous', 'fr-ca':'tous', 'en-us':'all', 'en-gb':'all', 'en-ca':'all', 'als': 'alli' },
+  reportApprove:     { 'fr-fr':'Approuver', 'fr-ca':'Approuver', 'en-us':'Approve', 'en-gb':'Approve', 'en-ca':'Approve', 'als':'Genehmige' },
   reportMsg:         { 'fr-fr':'Signaler', 'fr-ca':'Signaler', 'en-us':'Report', 'en-gb':'Report', 'en-ca':'Report', 'als':'Melde' },
   reportConfirm:     { 'fr-fr':'Signaler ce message aux admins ?', 'fr-ca':'Signaler ce message aux admins ?', 'en-us':'Report this message to admins?', 'en-gb':'Report this message to admins?', 'en-ca':'Report this message to admins?', 'als':'Die Nochricht de Admins melde?' },
   reportSent:        { 'fr-fr':'Message signalé aux admins.', 'fr-ca':'Message signalé aux admins.', 'en-us':'Message reported to admins.', 'en-gb':'Message reported to admins.', 'en-ca':'Message reported to admins.', 'als':'Nochricht gmeld.' },

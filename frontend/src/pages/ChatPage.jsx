@@ -113,6 +113,7 @@ export default function ChatPage({ onUnreadChange }) {
   const [firstUnreadIdx, setFirstUnreadIdx]         = useState(null);
   const [pinnedMsg, setPinnedMsg]                   = useState(null);
   const [reportMsgId, setReportMsgId]               = useState(null);
+  const [roomReports, setRoomReports]               = useState([]);
   const [roomUnread, setRoomUnread]                 = useState({});
   const [editingText, setEditingText]               = useState('');
   const [giphySearch, setGiphySearch]               = useState('');
@@ -246,6 +247,7 @@ export default function ChatPage({ onUnreadChange }) {
         setLastRead(activeRoom.id);
       });
       chatApi.getPinned(activeRoom.id).then(({ data }) => setPinnedMsg(data || null)).catch(() => setPinnedMsg(null));
+      if (isAdmin) chatApi.getReports(activeRoom.id).then(({ data }) => setRoomReports(data || [])).catch(() => setRoomReports([]));
 
     // Charger les réactions du salon
     chatApi.getReactions(activeRoom.id).then(data => {
@@ -294,6 +296,16 @@ export default function ChatPage({ onUnreadChange }) {
     setUnread(prev => ({ ...prev, [activeRoom.id]: 0 }));
     return () => { if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; } };
   }, [activeRoom?.id]);
+
+  const scrollToMsg = (msgId) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const handleResolve = async (msgId) => {
+    await chatApi.resolveReport(msgId);
+    setRoomReports(prev => prev.filter(r => r.message_id !== msgId));
+  };
 
   const handlePin = async (msg) => {
     const newPinned = pinnedMsg?.id !== msg.id;
@@ -456,6 +468,12 @@ export default function ChatPage({ onUnreadChange }) {
               <span className="chat-header-name">{activeRoom.type === 'general' ? t('chatGeneral') : activeRoom.name}</span>
             </div>
 
+            {isAdmin && roomReports.length > 0 && (
+              <div className="reports-bar" onClick={() => scrollToMsg(roomReports[0].message_id)}>
+                <span className="reports-icon">🚩</span>
+                <span className="reports-label">{roomReports.length} message{roomReports.length > 1 ? 's' : ''} signalé{roomReports.length > 1 ? 's' : ''} — cliquer pour voir</span>
+              </div>
+            )}
             {pinnedMsg && (
               <div className="pinned-msg-bar">
                 <span className="pinned-icon">📌</span>
@@ -483,6 +501,7 @@ export default function ChatPage({ onUnreadChange }) {
                   username: item.username,
                 };
                 const showSeparator = firstUnreadIdx !== null && idx === firstUnreadIdx;
+                const isReported = isAdmin && roomReports.some(r => r.message_id === item.id);
                 return (
                   <React.Fragment key={item.id}>
                   {showSeparator && (
@@ -490,7 +509,7 @@ export default function ChatPage({ onUnreadChange }) {
                       <span>{t('newMessages')}</span>
                     </div>
                   )}
-                  <div id={`msg-${item.id}`} className={`chat-msg ${isMe ? 'mine' : 'theirs'}${isMentioned ? ' mentioned' : ''}${isAdminMsg ? ' admin-msg' : ''}${!item.showName && !isMe ? ' grouped' : ''}${isEmojiOnly ? ' emoji-only' : ''}`}>
+                  <div id={`msg-${item.id}`} className={`chat-msg ${isMe ? 'mine' : 'theirs'}${isMentioned ? ' mentioned' : ''}${isAdminMsg ? ' admin-msg' : ''}${!item.showName && !isMe ? ' grouped' : ''}${isEmojiOnly ? ' emoji-only' : ''}${isReported ? ' reported' : ''}`}>
                     {/* Nom */}
                     {!isMe && item.showName && (
                       <div className="msg-author-row">
@@ -604,6 +623,14 @@ export default function ChatPage({ onUnreadChange }) {
 
                         {/* Heure — sous les réactions */}
                         <span className="msg-time">{formatTime(item.created_at)}{item.edited_at && editingMsgId !== item.id ? <em className="msg-edited"> · {t('msgEdited')}</em> : null}</span>
+
+                        {/* Boutons modération (admin + message signalé) */}
+                        {isReported && (
+                          <div className="report-actions">
+                            <button className="report-approve" onClick={() => handleResolve(item.id)}>✅ {t('reportApprove')}</button>
+                            <button className="report-delete" onClick={() => { handleDelete(item.id); handleResolve(item.id); }}>🗑 {t('chatDelete')}</button>
+                          </div>
+                        )}
 
                       </div>{/* fin msg-col */}
                     </div>{/* fin msg-row */}
