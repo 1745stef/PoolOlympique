@@ -1521,7 +1521,7 @@ div:hover > .avatar-crop-hover {
 .msg-delete:hover { opacity: 1 !important; }
 
 /* Input */
-.chat-input-row { display: flex; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); background: var(--bg2); flex-shrink: 0; align-items: flex-end; }
+.chat-input-row { display: flex; gap: 10px; padding: 14px 20px; padding-bottom: max(14px, env(safe-area-inset-bottom, 14px)); border-top: 1px solid var(--border); background: var(--bg2); flex-shrink: 0; align-items: flex-end; }
 .chat-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; color: var(--la-white); font-family: 'Outfit', sans-serif; font-size: 0.9rem; padding: 10px 14px; resize: none; max-height: 120px; overflow-y: auto; line-height: 1.4; transition: border-color 0.2s; }
 .chat-input:focus { outline: none; border-color: var(--la-coral); }
 .chat-send-btn { background: var(--la-coral); border: none; border-radius: 12px; color: white; font-size: 1.1rem; width: 42px; height: 42px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.2s; }
@@ -1757,3 +1757,36 @@ div:hover > .avatar-crop-hover {
 .img-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .msg-img { max-width: 220px; max-height: 300px; border-radius: 10px; display: block; cursor: pointer; transition: opacity 0.15s; object-fit: cover; }
 .msg-img:hover { opacity: 0.9; }
+
+/* ─── Chat input mobile ──────────────────────────────────────────────────── */
+/* Desktop — boutons dans le flux normal */
+.chat-input-btns-row { display: contents; }
+
+@media (max-width: 600px) {
+  .chat-input-row {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+    gap: 6px;
+  }
+  /* Ligne 1 : wrapper boutons prend toute la largeur */
+  .chat-input-btns-row {
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    width: 100%;
+    order: 1;
+  }
+  /* Ligne 2 : textarea prend le reste de la place */
+  .chat-input-row .chat-input {
+    order: 2;
+    flex: 1;
+    min-width: 0;
+  }
+  /* Ligne 2 : bouton envoi à côté du textarea */
+  .chat-input-row .chat-send-btn {
+    order: 2;
+    flex-shrink: 0;
+  }
+}

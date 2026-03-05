@@ -149,7 +149,6 @@ export default function ChatPage({ onUnreadChange }) {
   const [pinnedMsg, setPinnedMsg]                   = useState(null);
   const [reportMsgId, setReportMsgId]               = useState(null);
   const [roomReports, setRoomReports]               = useState([]);
-  const [roomUnread, setRoomUnread]                 = useState({});
   const [editingText, setEditingText]               = useState('');
   const [giphySearch, setGiphySearch]               = useState('');
   const [reactions, setReactions]                   = useState({}); // { message_id: [{emoji, user_id}] }
@@ -168,16 +167,16 @@ export default function ChatPage({ onUnreadChange }) {
   const messagesContainerRef = useRef(null);
 
   useEffect(() => {
-    const total = Object.values(roomUnread).reduce((a, b) => a + b, 0);
+    const total = Object.values(unread).reduce((a, b) => a + b, 0);
     onUnreadChange?.(total);
-  }, [roomUnread, onUnreadChange]);
+  }, [unread, onUnreadChange]);
 
   const getLastRead = (roomId) => {
     try { return parseInt(localStorage.getItem(`last_read_${roomId}`) || '0'); } catch { return 0; }
   };
   const setLastRead = (roomId) => {
     try { localStorage.setItem(`last_read_${roomId}`, Date.now()); } catch {}
-    setRoomUnread(prev => ({ ...prev, [roomId]: 0 }));
+    setUnread(prev => ({ ...prev, [roomId]: 0 }));
   };
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
@@ -189,6 +188,23 @@ export default function ChatPage({ onUnreadChange }) {
       const { scrollTop, scrollHeight, clientHeight } = container;
       setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 60);
     }, 300);
+  }, []);
+
+
+  // Channel global — badges non lus pour tous les salons inactifs
+  useEffect(() => {
+    const globalChannel = supabase.channel('global:messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const m = payload.new;
+          if (!m || m.deleted_at) return;
+          // Incrémenter seulement si ce n'est pas le salon actif ET pas notre propre message
+          if (m.room_id !== activeRoomRef.current?.id) {
+            setUnread(prev => ({ ...prev, [m.room_id]: (prev[m.room_id] || 0) + 1 }));
+          }
+        })
+      .subscribe();
+    return () => supabase.removeChannel(globalChannel);
   }, []);
 
   // Détecter si l'utilisateur a scrollé vers le haut
@@ -316,13 +332,10 @@ export default function ChatPage({ onUnreadChange }) {
         async (payload) => {
           const m = payload.new;
           if (m.deleted_at) return;
-          // Recharger le message complet pour avoir toutes les colonnes (is_admin_msg, avatar, etc.)
           const { data: full } = await supabase.from('messages').select('*').eq('id', m.id).single();
           const msg = full || m;
           setMessages(prev => prev.find(x => x.id === msg.id) ? prev : [...prev, msg]);
           setTimeout(() => scrollToBottom('smooth'), 50);
-          if (activeRoomRef.current?.id !== msg.room_id)
-            setUnread(prev => ({ ...prev, [msg.room_id]: (prev[msg.room_id] || 0) + 1 }));
         })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
         (payload) => { if (payload.new.deleted_at) setMessages(prev => prev.filter(m => m.id !== payload.new.id)); })
@@ -762,24 +775,26 @@ export default function ChatPage({ onUnreadChange }) {
                 </div>
               )}
               <div className="chat-input-row">
-                {isAdmin && (
-                  <button
-                    className={`admin-mode-btn${adminMode ? ' active' : ''}`}
-                    onClick={() => setAdminMode(v => !v)}
-                    title={adminMode ? t('adminModeOn') : t('adminModeOff')}
-                  >
-                    🔑
+                <div className="chat-input-btns-row">
+                  {isAdmin && (
+                    <button
+                      className={`admin-mode-btn${adminMode ? ' active' : ''}`}
+                      onClick={() => setAdminMode(v => !v)}
+                      title={adminMode ? t('adminModeOn') : t('adminModeOff')}
+                    >
+                      🔑
+                    </button>
+                  )}
+                  <button className="emoji-input-btn" onClick={() => { setShowInputPicker(v => !v); setShowGiphy(false); }}>😊</button>
+                  <button className="emoji-input-btn gif-btn" onClick={() => { setShowGiphy(v => !v); setShowInputPicker(false); }}>GIF</button>
+                  <button className="emoji-input-btn img-upload-btn" onClick={() => fileInputRef.current?.click()} disabled={uploadingImg} title="Envoyer une image">
+                    {uploadingImg ? '⏳' : '📷'}
                   </button>
-                )}
-                <button className="emoji-input-btn" onClick={() => { setShowInputPicker(v => !v); setShowGiphy(false); }}>😊</button>
-                <button className="emoji-input-btn gif-btn" onClick={() => { setShowGiphy(v => !v); setShowInputPicker(false); }}>GIF</button>
-                <button className="emoji-input-btn img-upload-btn" onClick={() => fileInputRef.current?.click()} disabled={uploadingImg} title="Envoyer une image">
-                  {uploadingImg ? '⏳' : '📷'}
-                </button>
-                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+                  <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+                </div>
                 <textarea ref={inputRef} className={`chat-input${adminMode ? ' admin-mode-input' : ''}`} value={input}
                   onChange={handleInputChange} onKeyDown={handleKeyDown}
-                  placeholder={adminMode ? t('adminModePlaceholder') : t('chatPlaceholder')} rows={1} maxLength={1000} />
+                  placeholder='' rows={1} maxLength={1000} />
                 <button className="chat-send-btn" onClick={handleSend} disabled={!input.trim() || sending}>
                   {sending ? '⏳' : '➤'}
                 </button>
