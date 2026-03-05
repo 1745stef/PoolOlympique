@@ -1,4 +1,7 @@
 import express from 'express';
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
+import ogs from 'open-graph-scraper';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -6,6 +9,23 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+// Config Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Multer en mémoire (pas de fichier temporaire sur disque)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Fichier non-image refusé'));
+    cb(null, true);
+  },
+});
 
 const app = express();
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
@@ -516,6 +536,9 @@ app.delete('/groups/:id', requireLevel(3), async (req, res) => {
     const isMember = (grp?.group_members || []).some(m => m.user_id === req.user.id);
     if (!grp || (grp.created_by !== req.user.id && !isMember)) return res.status(403).json({ error: 'Vous ne pouvez supprimer que vos propres groupes' });
   }
+  // Supprimer les messages + réactions du salon du groupe (réactions en cascade via FK)
+  await supabase.from('messages').delete().eq('room_id', `group_${req.params.id}`);
+
   const { error } = await supabase.from('groups').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json({ success: true });
@@ -549,3 +572,269 @@ app.delete('/groups/:id/members/:user_id', requireLevel(3), async (req, res) => 
 // ─── Start ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🏅 API démarrée sur http://localhost:${PORT}`));
+
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+// GET /chat/rooms — salons accessibles par l'utilisateur
+app.get('/chat/rooms', authMiddleware, async (req, res) => {
+  const level = req.user.role_level ?? ROLE_PLAYER;
+  const rooms = [{ id: 'general', name: 'Général', type: 'general' }];
+
+  // Groupes accessibles
+  const { data: groups } = await supabase.from('groups')
+    .select('id, name, group_members(user_id)')
+    .order('name');
+
+  (groups || []).forEach(g => {
+    const isMember = (g.group_members || []).some(m => m.user_id === req.user.id);
+    const isAdmin  = level <= 2;
+    if (isAdmin || isMember) {
+      rooms.push({ id: `group_${g.id}`, name: g.name, type: 'group' });
+    }
+  });
+
+  res.json(rooms);
+});
+
+// POST /chat/:room_id/messages — envoyer un message
+app.post('/chat/:room_id/messages', authMiddleware, async (req, res) => {
+  const { content, is_admin_msg, is_gif } = req.body;
+  if (!content || !content.trim()) return res.status(400).json({ error: 'Message vide' });
+  if (content.length > 1000) return res.status(400).json({ error: 'Message trop long (max 1000 car.)' });
+
+  const room_id = req.params.room_id;
+
+  // Vérifier accès au salon
+  if (room_id !== 'general') {
+    const level = req.user.role_level ?? ROLE_PLAYER;
+    if (room_id.startsWith('group_') && level > 2) {
+      const groupId = room_id.replace('group_', '');
+      const { data: membership } = await supabase.from('group_members')
+        .select('user_id').eq('group_id', groupId).eq('user_id', req.user.id).single();
+      // Vérifier aussi si créateur
+      const { data: grp } = await supabase.from('groups')
+        .select('created_by').eq('id', groupId).single();
+      if (!membership && grp?.created_by !== req.user.id) {
+        return res.status(403).json({ error: 'Accès refusé à ce salon' });
+      }
+    }
+  }
+
+  // Récupérer avatar + role depuis la DB (fraîcheur garantie)
+  const { data: profile } = await supabase.from('users')
+    .select('avatar_url, avatar_type, avatar_color, avatar_text_color, role_id, roles(level)')
+    .eq('id', req.user.id).single();
+
+  const { data, error } = await supabase.from('messages').insert({
+    room_id,
+    user_id:            req.user.id,
+    username:           req.user.username,
+    content:            content.trim(),
+    role_level:         profile?.roles?.level ?? req.user.role_level ?? 99,
+    is_admin_msg:       !!(is_admin_msg && (profile?.roles?.level ?? 99) <= 2),
+    is_gif:             !!is_gif,
+    avatar_url:         profile?.avatar_url || null,
+    avatar_type:        profile?.avatar_type || 'letter',
+    avatar_color:       profile?.avatar_color || '#000000',
+    avatar_text_color:  profile?.avatar_text_color || '#FFFFFF',
+  }).select().single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+
+
+
+// GET /chat/:room_id/reports — signalements du salon (admin seulement)
+app.get('/chat/:room_id/reports', requireLevel(2), async (req, res) => {
+  const { data, error } = await supabase
+    .from('reports')
+    .select('id, message_id, reason, created_at, reported_by, users!reported_by(username)')
+    .eq('resolved', false)
+    .order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  // Filtrer par room_id en récupérant les messages
+  const msgIds = [...new Set((data || []).map(r => r.message_id))];
+  if (!msgIds.length) return res.json({ data: [] });
+  const { data: msgs } = await supabase.from('messages').select('id, room_id').in('id', msgIds);
+  const roomMsgIds = new Set((msgs || []).filter(m => m.room_id === req.params.room_id).map(m => m.id));
+  const filtered = (data || []).filter(r => roomMsgIds.has(r.message_id));
+  res.json({ data: filtered });
+});
+
+// POST /chat/messages/:id/resolve — approuver (effacer signalement)
+app.post('/chat/messages/:id/resolve', requireLevel(2), async (req, res) => {
+  const { error } = await supabase.from('reports').update({ resolved: true }).eq('message_id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// Cache en mémoire pour les previews de liens
+const linkPreviewCache = new Map();
+
+
+// POST /chat/:room_id/upload — upload image vers Cloudinary
+app.post('/chat/:room_id/upload', authMiddleware, upload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Aucun fichier reçu' });
+  try {
+    // Upload vers Cloudinary via stream
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'chat-images', resource_type: 'image', transformation: [{ quality: 'auto', fetch_format: 'auto' }] },
+        (error, result) => error ? reject(error) : resolve(result)
+      );
+      stream.end(req.file.buffer);
+    });
+
+    // Récupérer le profil pour les champs avatar
+    const { data: profile } = await supabase.from('users')
+      .select('avatar_url, avatar_type, avatar_color, avatar_text_color, role_id, roles(level)')
+      .eq('id', req.user.id).single();
+
+    // Créer le message avec l'URL Cloudinary
+    const { data, error } = await supabase.from('messages').insert({
+      room_id:           req.params.room_id,
+      user_id:           req.user.id,
+      username:          req.user.username,
+      content:           result.secure_url,
+      is_image:          true,
+      role_level:        profile?.roles?.level ?? req.user.role_level ?? 99,
+      avatar_url:        profile?.avatar_url || null,
+      avatar_type:       profile?.avatar_type || 'letter',
+      avatar_color:      profile?.avatar_color || '#000000',
+      avatar_text_color: profile?.avatar_text_color || '#FFFFFF',
+    }).select().single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// GET /chat/link-preview?url=... — aperçu Open Graph d'un lien
+app.get('/chat/link-preview', authMiddleware, async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'URL requise' });
+
+  // Retourner depuis le cache si disponible
+  if (linkPreviewCache.has(url)) return res.json(linkPreviewCache.get(url));
+
+  try {
+    const { result } = await ogs({ url, timeout: 5000, fetchOptions: { headers: { 'user-agent': 'Mozilla/5.0' } } });
+    const preview = {
+      title: result.ogTitle || result.twitterTitle || null,
+      description: result.ogDescription || result.twitterDescription || null,
+      image: result.ogImage?.[0]?.url || result.twitterImage?.[0]?.url || null,
+      siteName: result.ogSiteName || null,
+      url,
+    };
+    linkPreviewCache.set(url, preview);
+    // Limiter le cache à 200 entrées
+    if (linkPreviewCache.size > 200) linkPreviewCache.delete(linkPreviewCache.keys().next().value);
+    res.json(preview);
+  } catch {
+    const empty = { title: null, description: null, image: null, siteName: null, url };
+    linkPreviewCache.set(url, empty);
+    res.json(empty);
+  }
+});
+// POST /chat/messages/:id/report — signaler un message
+app.post('/chat/messages/:id/report', authMiddleware, async (req, res) => {
+  const { reason } = req.body;
+  const { data: msg } = await supabase.from('messages').select('id, content, user_id, room_id').eq('id', req.params.id).single();
+  if (!msg) return res.status(404).json({ error: 'Message introuvable' });
+  const { error } = await supabase.from('reports').insert({
+    message_id: req.params.id,
+    reported_by: req.user.id,
+    reason: reason || null,
+  });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// POST /chat/messages/:id/pin — épingler/désépingler (admin seulement)
+app.post('/chat/messages/:id/pin', requireLevel(2), async (req, res) => {
+  const { pinned } = req.body;
+  const { error } = await supabase.from('messages').update({ is_pinned: !!pinned }).eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// GET /chat/:room_id/pinned — message épinglé du salon
+app.get('/chat/:room_id/pinned', authMiddleware, async (req, res) => {
+  const { data, error } = await supabase.from('messages')
+    .select('id, content, user_id, is_gif, users(username)')
+    .eq('room_id', req.params.room_id)
+    .eq('is_pinned', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+  if (error) return res.json({ data: null });
+  res.json({ data });
+});
+// PATCH /chat/messages/:id — éditer un message
+app.patch('/chat/messages/:id', authMiddleware, async (req, res) => {
+  const { content } = req.body;
+  if (!content?.trim()) return res.status(400).json({ error: 'Contenu requis' });
+  const { data: msg } = await supabase.from('messages').select('user_id').eq('id', req.params.id).single();
+  if (!msg) return res.status(404).json({ error: 'Message introuvable' });
+  if (msg.user_id !== req.user.id) return res.status(403).json({ error: 'Non autorisé' });
+  const { error } = await supabase.from('messages')
+    .update({ content: content.trim(), edited_at: new Date().toISOString() })
+    .eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+// DELETE /chat/messages/:id — soft delete (admin seulement)
+app.delete('/chat/messages/:id', requireLevel(2), async (req, res) => {
+  const { error } = await supabase.from('messages')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// ─── Réactions ────────────────────────────────────────────────────────────────
+// POST /chat/messages/:id/reactions — toggle une réaction
+app.post('/chat/messages/:id/reactions', authMiddleware, async (req, res) => {
+  const { emoji } = req.body;
+  if (!emoji) return res.status(400).json({ error: 'Emoji requis' });
+  if (['🖕','🖕🏻','🖕🏼','🖕🏽','🖕🏾','🖕🏿'].includes(emoji)) return res.status(400).json({ error: 'Emoji non autorisé' });
+
+  const message_id = req.params.id;
+  const user_id = req.user.id;
+
+  // Vérifier si la réaction existe déjà
+  const { data: existing } = await supabase.from('reactions')
+    .select('id').eq('message_id', message_id).eq('user_id', user_id).eq('emoji', emoji).single();
+
+  if (existing) {
+    // Supprimer (toggle off)
+    await supabase.from('reactions').delete().eq('id', existing.id);
+    return res.json({ action: 'removed' });
+  } else {
+    // Ajouter (toggle on)
+    await supabase.from('reactions').insert({ message_id, user_id, emoji });
+    return res.json({ action: 'added' });
+  }
+});
+
+// GET /chat/messages/reactions?room_id=xxx — toutes les réactions d'un salon
+app.get('/chat/messages/reactions', authMiddleware, async (req, res) => {
+  const { room_id } = req.query;
+  if (!room_id) return res.status(400).json({ error: 'room_id requis' });
+
+  // D'abord récupérer les IDs des messages du salon
+  const { data: msgs } = await supabase.from('messages')
+    .select('id').eq('room_id', room_id).is('deleted_at', null);
+
+  if (!msgs || msgs.length === 0) return res.json([]);
+
+  const msgIds = msgs.map(m => m.id);
+  const { data, error } = await supabase.from('reactions')
+    .select('id, message_id, user_id, emoji')
+    .in('message_id', msgIds);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});

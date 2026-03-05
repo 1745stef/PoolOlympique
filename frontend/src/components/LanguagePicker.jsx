@@ -10,6 +10,17 @@ const FLAG_URLS = {
   'en-ca': 'https://flagcdn.com/w40/ca.png',
 };
 
+// Drapeau alsacien SVG (bandes rouge et blanc horizontales)
+function AlsaceFlag({ size = 20 }) {
+  return (
+    <svg width={size * 1.6} height={size} viewBox="0 0 32 20" xmlns="http://www.w3.org/2000/svg"
+      style={{ borderRadius: 2, flexShrink: 0, display: 'block' }}>
+      <rect width="32" height="10" fill="#E8002D"/>
+      <rect y="10" width="32" height="10" fill="#FFFFFF"/>
+    </svg>
+  );
+}
+
 // SVG drapeau du Québec (pas de drapeau dans l'API Codante)
 function QuebecFlag({ size = 20 }) {
   const Fleur = ({ x, y }) => (
@@ -36,6 +47,7 @@ function QuebecFlag({ size = 20 }) {
 
 export function LangFlag({ code, size = 20 }) {
   if (code === 'fr-ca') return <QuebecFlag size={size} />;
+  if (code === 'als')   return <AlsaceFlag size={size} />;
   const url = FLAG_URLS[code];
   if (url) return (
     <img src={url} alt={code} style={{ width: size * (4/3), height: size * 0.9, objectFit: 'cover', borderRadius: 2, flexShrink: 0, display: 'block' }} />

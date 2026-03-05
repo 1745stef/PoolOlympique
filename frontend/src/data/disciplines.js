@@ -17,6 +17,18 @@ export function getDayDate(day) {
 // Bandeau J1 → J19
 export const DISPLAY_DAYS = Array.from({ length: 19 }, (_, i) => i + 1);
 
+// Dates stockées en ISO pour pouvoir les formater selon la langue
+export const GAME_DATES_ISO = {
+  '1':  '2028-07-12', '2':  '2028-07-13', '3':  '2028-07-14',
+  '4':  '2028-07-15', '5':  '2028-07-16', '6':  '2028-07-17',
+  '7':  '2028-07-18', '8':  '2028-07-19', '9':  '2028-07-20',
+  '10': '2028-07-21', '11': '2028-07-22', '12': '2028-07-23',
+  '13': '2028-07-24', '14': '2028-07-25', '15': '2028-07-26',
+  '16': '2028-07-27', '17': '2028-07-28', '18': '2028-07-29',
+  '19': '2028-07-30',
+};
+
+// Garder GAME_DATES pour compatibilité (fr-fr par défaut)
 export const GAME_DATES = {
   '1':  '12 juillet', '2':  '13 juillet', '3':  '14 juillet',
   '4':  '15 juillet', '5':  '16 juillet', '6':  '17 juillet',
@@ -25,6 +37,18 @@ export const GAME_DATES = {
   '13': '24 juillet', '14': '25 juillet', '15': '26 juillet',
   '16': '27 juillet', '17': '28 juillet', '18': '29 juillet',
   '19': '30 juillet',
+};
+
+// Formater une date de jeu selon la langue
+export function formatGameDate(day, lang) {
+  const iso = GAME_DATES_ISO[String(day)];
+  if (!iso) return GAME_DATES[String(day)] || '';
+  const date = new Date(iso + 'T12:00:00');
+  const locale = lang === 'als' ? 'de-DE'
+    : lang === 'fr-fr' || lang === 'fr-ca' ? 'fr-FR'
+    : lang === 'en-gb' ? 'en-GB'
+    : 'en-US';
+  return date.toLocaleDateString(locale, { day: 'numeric', month: 'long' });
 };
 
 // Conversion jour interne (1-19) → label officiel LA28 (J-2 à J16)

@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { picksApi, olympicApi } from '../lib/api';
 import { useLang } from '../hooks/useLanguage';
 import { getDisciplineNameLang, getCountryNameLang } from '../data/i18n';
-import { LA28_DISCIPLINES, isPickLocked, GAME_DATES } from '../data/disciplines';
+import { LA28_DISCIPLINES, isPickLocked, GAME_DATES, formatGameDate } from '../data/disciplines';
 
 const isMobile = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -166,7 +166,7 @@ export default function PicksPage() {
           const isSaving = saving === disc.id;
           const pickedCountry = pickedId ? allCountries.find(c => c.id === pickedId) : null;
           const pickedNameLang = pickedCountry ? getCountryNameLang(pickedId, pickedCountry.name, lang) : null;
-          const firstDate = GAME_DATES[String(disc.firstDay)];
+          const firstDate = formatGameDate(disc.firstDay, lang);
           const filteredCountries = allCountries.filter(c =>
             getCountryNameLang(c.id, c.name, lang).toLowerCase().includes(countrySearch.toLowerCase())
           );
