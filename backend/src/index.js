@@ -623,6 +623,41 @@ app.post('/chat/:room_id/messages', authMiddleware, async (req, res) => {
 });
 
 
+
+// POST /chat/messages/:id/report — signaler un message
+app.post('/chat/messages/:id/report', authMiddleware, async (req, res) => {
+  const { reason } = req.body;
+  const { data: msg } = await supabase.from('messages').select('id, content, user_id, room_id').eq('id', req.params.id).single();
+  if (!msg) return res.status(404).json({ error: 'Message introuvable' });
+  const { error } = await supabase.from('reports').insert({
+    message_id: req.params.id,
+    reported_by: req.user.id,
+    reason: reason || null,
+  });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// POST /chat/messages/:id/pin — épingler/désépingler (admin seulement)
+app.post('/chat/messages/:id/pin', requireLevel(2), async (req, res) => {
+  const { pinned } = req.body;
+  const { error } = await supabase.from('messages').update({ is_pinned: !!pinned }).eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// GET /chat/:room_id/pinned — message épinglé du salon
+app.get('/chat/:room_id/pinned', authMiddleware, async (req, res) => {
+  const { data, error } = await supabase.from('messages')
+    .select('id, content, user_id, is_gif, users(username)')
+    .eq('room_id', req.params.room_id)
+    .eq('is_pinned', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+  if (error) return res.json({ data: null });
+  res.json({ data });
+});
 // PATCH /chat/messages/:id — éditer un message
 app.patch('/chat/messages/:id', authMiddleware, async (req, res) => {
   const { content } = req.body;

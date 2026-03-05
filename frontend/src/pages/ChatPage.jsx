@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useLang } from '../hooks/useLanguage';
 import { chatApi, adminApi } from '../lib/api';
@@ -110,6 +110,9 @@ export default function ChatPage({ onUnreadChange }) {
   const [showScrollBtn, setShowScrollBtn]           = useState(false);
   const [unreadCount, setUnreadCount]               = useState(0);
   const [editingMsgId, setEditingMsgId]             = useState(null);
+  const [firstUnreadIdx, setFirstUnreadIdx]         = useState(null);
+  const [pinnedMsg, setPinnedMsg]                   = useState(null);
+  const [reportMsgId, setReportMsgId]               = useState(null);
   const [roomUnread, setRoomUnread]                 = useState({});
   const [editingText, setEditingText]               = useState('');
   const [giphySearch, setGiphySearch]               = useState('');
@@ -222,7 +225,27 @@ export default function ChatPage({ onUnreadChange }) {
     supabase.from('messages')
       .select('*').eq('room_id', activeRoom.id).is('deleted_at', null)
       .order('created_at', { ascending: true }).limit(100)
-      .then(({ data }) => { setMessages(data || []); setTimeout(() => scrollToBottom('instant'), 50); setLastRead(roomId); });
+      .then(({ data }) => {
+        const msgs = data || [];
+        const lastRead = getLastRead(activeRoom.id);
+        // Trouver le premier message non lu
+        const idx = lastRead > 0
+          ? msgs.findIndex(m => new Date(m.created_at).getTime() > lastRead)
+          : -1;
+        setFirstUnreadIdx(idx > 0 ? idx : null);
+        setMessages(msgs);
+        setTimeout(() => {
+          if (idx > 0) {
+            // Scroller jusqu'au séparateur
+            const sep = document.getElementById('unread-separator');
+            if (sep) sep.scrollIntoView({ behavior: 'instant', block: 'center' });
+          } else {
+            scrollToBottom('instant');
+          }
+        }, 50);
+        setLastRead(activeRoom.id);
+      });
+      chatApi.getPinned(activeRoom.id).then(({ data }) => setPinnedMsg(data || null)).catch(() => setPinnedMsg(null));
 
     // Charger les réactions du salon
     chatApi.getReactions(activeRoom.id).then(data => {
@@ -271,6 +294,18 @@ export default function ChatPage({ onUnreadChange }) {
     setUnread(prev => ({ ...prev, [activeRoom.id]: 0 }));
     return () => { if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; } };
   }, [activeRoom?.id]);
+
+  const handlePin = async (msg) => {
+    const newPinned = pinnedMsg?.id !== msg.id;
+    await chatApi.pinMessage(msg.id, newPinned);
+    setPinnedMsg(newPinned ? msg : null);
+  };
+
+  const handleReport = async (msgId) => {
+    await chatApi.reportMessage(msgId, null);
+    setReportMsgId(null);
+    alert(t('reportSent'));
+  };
 
   const startEdit = (msg) => {
     setEditingMsgId(msg.id);
@@ -421,9 +456,16 @@ export default function ChatPage({ onUnreadChange }) {
               <span className="chat-header-name">{activeRoom.type === 'general' ? t('chatGeneral') : activeRoom.name}</span>
             </div>
 
+            {pinnedMsg && (
+              <div className="pinned-msg-bar">
+                <span className="pinned-icon">📌</span>
+                <span className="pinned-content">{pinnedMsg.is_gif ? '🖼 GIF' : pinnedMsg.content?.slice(0, 80)}</span>
+                {isAdmin && <button className="pinned-unpin" onClick={() => handlePin(pinnedMsg)}>✕</button>}
+              </div>
+            )}
             <div className="chat-messages" ref={messagesContainerRef}>
               {messages.length === 0 && <div className="chat-empty">{t('chatEmpty')}</div>}
-              {grouped.map((item) => {
+              {grouped.map((item, idx) => {
                 if (item.type === 'date') return (
                   <div key={item.key} className="chat-date-divider"><span>{formatDate(item.date)}</span></div>
                 );
@@ -440,114 +482,133 @@ export default function ChatPage({ onUnreadChange }) {
                   avatar_text_color: item.avatar_text_color || '#FFFFFF',
                   username: item.username,
                 };
+                const showSeparator = firstUnreadIdx !== null && idx === firstUnreadIdx;
                 return (
-                  <div key={item.id} id={`msg-${item.id}`} className={`chat-msg ${isMe ? 'mine' : 'theirs'}${isMentioned ? ' mentioned' : ''}${isAdminMsg ? ' admin-msg' : ''}${!item.showName && !isMe ? ' grouped' : ''}${isEmojiOnly ? ' emoji-only' : ''}`}>
-                    {/* Nom — seulement sur le premier du groupe */}
+                  <React.Fragment key={item.id}>
+                  {showSeparator && (
+                    <div id="unread-separator" className="unread-separator">
+                      <span>{t('newMessages')}</span>
+                    </div>
+                  )}
+                  <div id={`msg-${item.id}`} className={`chat-msg ${isMe ? 'mine' : 'theirs'}${isMentioned ? ' mentioned' : ''}${isAdminMsg ? ' admin-msg' : ''}${!item.showName && !isMe ? ' grouped' : ''}${isEmojiOnly ? ' emoji-only' : ''}`}>
+                    {/* Nom */}
                     {!isMe && item.showName && (
                       <div className="msg-author-row">
                         <span className="msg-author">{item.username}</span>
                         {isAdminMsg && <span className="msg-admin-badge">{item.role_level === 1 ? '⭐' : '🔑'}</span>}
                       </div>
                     )}
-                    <div className="msg-with-avatar">
-                      {/* Avatar à gauche — seulement sur le dernier du groupe */}
+
+                    {/* Ligne avatar + contenu */}
+                    <div className="msg-row">
+                      {/* Avatar — affiché seulement pour les messages des autres */}
                       {!isMe && (
                         <div className="msg-avatar-slot">
                           {item.showAvatar && <Avatar user={msgAvatar} size={28} />}
                         </div>
                       )}
-                      <div className="msg-bubble-wrap">
-                        <div className={`msg-bubble${item.is_gif ? ' gif-bubble' : ''}`}>
-                        {/* Barre d'actions flottante — ancrée sur la bulle */}
-                        {editingMsgId !== item.id && (
-                          <div className={`msg-hover-actions ${isMe ? 'actions-left' : 'actions-right'}`}>
-                            {isMe && !item.is_gif && <button className="msg-action-btn" onClick={() => startEdit(item)} title="Modifier">✏️</button>}
-                            <button className="msg-action-btn" onClick={() => setPickerMsgId(pickerMsgId === item.id ? null : item.id)} title="Réagir">😊</button>
-                            {isAdmin && <button className="msg-action-btn msg-action-delete" onClick={() => handleDelete(item.id)} title={t('chatDelete')}>🗑</button>}
+
+                      {/* Colonne : bulle + réactions + heure */}
+                      <div className="msg-col">
+
+                        {/* Bulle avec hover actions */}
+                        <div className="msg-bubble-wrap">
+                          <div className={`msg-bubble${item.is_gif ? ' gif-bubble' : ''}`}>
+                            {editingMsgId !== item.id && (
+                              <div className={`msg-hover-actions ${isMe ? 'actions-left' : 'actions-right'}`}>
+                                {isMe && !item.is_gif && <button className="msg-action-btn" onClick={() => startEdit(item)} title="Modifier">✏️</button>}
+                                <button className="msg-action-btn" onClick={() => setPickerMsgId(pickerMsgId === item.id ? null : item.id)} title="Réagir">😊</button>
+                                {!isMe && <button className="msg-action-btn" onClick={() => { if(window.confirm(t('reportConfirm'))) handleReport(item.id); }} title={t('reportMsg')}>🚩</button>}
+                                {isAdmin && <button className="msg-action-btn" onClick={() => handlePin(item)} title={pinnedMsg?.id === item.id ? t('unpinMsg') : t('pinMsg')}>{pinnedMsg?.id === item.id ? '📌' : '📍'}</button>}
+                                {isAdmin && <button className="msg-action-btn msg-action-delete" onClick={() => handleDelete(item.id)} title={t('chatDelete')}>🗑</button>}
+                              </div>
+                            )}
+                            {editingMsgId === item.id ? (
+                              <div className="msg-edit-wrap">
+                                <textarea
+                                  className="msg-edit-input"
+                                  value={editingText}
+                                  onChange={e => setEditingText(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(item.id); }
+                                    if (e.key === 'Escape') cancelEdit();
+                                  }}
+                                  autoFocus
+                                  rows={2}
+                                />
+                                <div className="msg-edit-actions">
+                                  <button className="msg-edit-save" onClick={() => submitEdit(item.id)}>✓</button>
+                                  <button className="msg-edit-cancel" onClick={cancelEdit}>✕</button>
+                                </div>
+                              </div>
+                            ) : item.is_gif
+                              ? <img src={item.content} alt="GIF" className="msg-gif" />
+                              : <span className="msg-content">{renderContent(item.content, user?.username)}</span>
+                            }
+                          </div>
+
+                          {/* Emoji picker */}
+                          {pickerMsgId === item.id && (
+                            <div
+                              ref={pickerRef}
+                              className={`emoji-picker-wrap ${isMe ? 'picker-left' : 'picker-right'}`}
+                              style={(() => {
+                                const el = document.getElementById(`msg-${item.id}`);
+                                if (!el) return {};
+                                const rect = el.getBoundingClientRect();
+                                const viewportHeight = window.innerHeight;
+                                const spaceBelow = viewportHeight - rect.bottom;
+                                const spaceAbove = rect.top;
+                                if (spaceBelow >= 460) return { bottom: 'auto', top: '100%' };
+                                if (spaceAbove >= 460) return {};
+                                return {
+                                  position: 'fixed',
+                                  top: Math.max(8, Math.min(viewportHeight - 460, rect.top - 200)),
+                                  bottom: 'auto',
+                                  ...(isMe ? { right: Math.max(8, window.innerWidth - rect.left + 6) } : { left: Math.max(8, rect.right + 6) })
+                                };
+                              })()}
+                            >
+                              <Picker
+                                data={data}
+                                onEmojiSelect={(e) => handleReaction(item.id, e.native)}
+                                theme="dark"
+                                locale={lang?.startsWith('fr') ? 'fr' : 'en'}
+                                previewPosition="none"
+                                skinTonePosition="none"
+                                maxFrequentRows={2}
+                                perLine={8}
+                              />
+                            </div>
+                          )}
+                        </div>{/* fin msg-bubble-wrap */}
+
+                        {/* Réactions — sous la bulle, largeur libre */}
+                        {(reactions[item.id] || []).length > 0 && (
+                          <div className={`msg-reactions ${isMe ? 'reactions-mine' : 'reactions-theirs'}`}>
+                            {Object.entries(
+                              (reactions[item.id] || []).reduce((acc, r) => {
+                                acc[r.emoji] = (acc[r.emoji] || []);
+                                acc[r.emoji].push(r.user_id);
+                                return acc;
+                              }, {})
+                            ).map(([emoji, uids]) => (
+                              <button key={emoji}
+                                className={`reaction-chip${uids.includes(user?.id) ? ' mine' : ''}`}
+                                onClick={() => handleReaction(item.id, emoji)}>
+                                {emoji} <span>{uids.length}</span>
+                              </button>
+                            ))}
                           </div>
                         )}
-                        {editingMsgId === item.id ? (
-                          <div className="msg-edit-wrap">
-                            <textarea
-                              className="msg-edit-input"
-                              value={editingText}
-                              onChange={e => setEditingText(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(item.id); }
-                                if (e.key === 'Escape') cancelEdit();
-                              }}
-                              autoFocus
-                              rows={2}
-                            />
-                            <div className="msg-edit-actions">
-                              <button className="msg-edit-save" onClick={() => submitEdit(item.id)}>✓</button>
-                              <button className="msg-edit-cancel" onClick={cancelEdit}>✕</button>
-                            </div>
-                          </div>
-                        ) : item.is_gif
-                          ? <img src={item.content} alt="GIF" className="msg-gif" />
-                          : <span className="msg-content">{renderContent(item.content, user?.username)}</span>
-                        }
 
-                      </div>
-                      {/* Emoji picker emoji-mart */}
-                      {pickerMsgId === item.id && (
-                        <div
-                          ref={pickerRef}
-                          className={`emoji-picker-wrap ${isMe ? 'picker-left' : 'picker-right'}`}
-                          style={(() => {
-                            const el = document.getElementById(`msg-${item.id}`);
-                            if (!el) return {};
-                            const rect = el.getBoundingClientRect();
-                            const viewportHeight = window.innerHeight;
-                            const spaceBelow = viewportHeight - rect.bottom;
-                            const spaceAbove = rect.top;
-                            // Picker height ~440px — ouvrir vers le bas seulement si assez de place
-                            if (spaceBelow >= 460) return { bottom: 'auto', top: '100%' };
-                            if (spaceAbove >= 460) return {};  // vers le haut (défaut CSS)
-                            // Ni assez haut ni assez bas — centrer sur viewport avec position fixed
-                            return {
-                              position: 'fixed',
-                              top: Math.max(8, Math.min(viewportHeight - 460, rect.top - 200)),
-                              bottom: 'auto',
-                              ...(isMe ? { right: Math.max(8, window.innerWidth - rect.left + 6) } : { left: Math.max(8, rect.right + 6) })
-                            };
-                          })()}
-                        >
-                          <Picker
-                            data={data}
-                            onEmojiSelect={(e) => handleReaction(item.id, e.native)}
-                            theme="dark"
-                            locale={lang?.startsWith('fr') ? 'fr' : 'en'}
-                            previewPosition="none"
-                            skinTonePosition="none"
-                            maxFrequentRows={2}
-                            perLine={8}
-                          />
-                        </div>
-                      )}
-                    </div>
-                    </div>
-                    {/* Réactions + heure — hors de la bulle */}
-                    {(reactions[item.id] || []).length > 0 && (
-                      <div className={`msg-reactions ${isMe ? 'reactions-mine' : 'reactions-theirs'}`}>
-                        {Object.entries(
-                          (reactions[item.id] || []).reduce((acc, r) => {
-                            acc[r.emoji] = (acc[r.emoji] || []);
-                            acc[r.emoji].push(r.user_id);
-                            return acc;
-                          }, {})
-                        ).map(([emoji, uids]) => (
-                          <button key={emoji}
-                            className={`reaction-chip${uids.includes(user?.id) ? ' mine' : ''}`}
-                            onClick={() => handleReaction(item.id, emoji)}>
-                            {emoji} <span>{uids.length}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <span className="msg-time">{formatTime(item.created_at)}{item.edited_at && editingMsgId !== item.id ? <em className="msg-edited"> · {t('msgEdited')}</em> : null}</span>
+                        {/* Heure — sous les réactions */}
+                        <span className="msg-time">{formatTime(item.created_at)}{item.edited_at && editingMsgId !== item.id ? <em className="msg-edited"> · {t('msgEdited')}</em> : null}</span>
+
+                      </div>{/* fin msg-col */}
+                    </div>{/* fin msg-row */}
                   </div>
+                  </React.Fragment>
                 );
               })}
               <div ref={messagesEndRef} />

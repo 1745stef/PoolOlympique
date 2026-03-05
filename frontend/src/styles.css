@@ -1502,7 +1502,7 @@ div:hover > .avatar-crop-hover {
 .chat-date-divider span { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
 
 /* Bulles */
-.chat-msg { display: flex; flex-direction: column; max-width: 70%; margin-bottom: 4px; }
+.chat-msg { display: flex; flex-direction: column; max-width: 70%; margin-bottom: 4px; gap: 0; }
 .chat-msg.mine { align-self: flex-end; align-items: flex-end; }
 .chat-msg.theirs { align-self: flex-start; align-items: flex-start; }
 .msg-author { font-size: 0.72rem; color: var(--muted); margin-bottom: 3px; padding: 0 10px; }
@@ -1514,6 +1514,7 @@ div:hover > .avatar-crop-hover {
 .msg-time { font-size: 0.65rem; color: var(--muted); display: block; margin-top: 3px; padding: 0 4px; }
 .chat-msg.mine .msg-time { text-align: right; color: var(--muted); }
 .chat-msg.theirs .msg-time { text-align: left; }
+
 .msg-edited { font-style: italic; }
 .msg-delete { background: transparent; border: none; cursor: pointer; font-size: 0.75rem; opacity: 0; transition: opacity 0.15s; padding: 0 2px; }
 .msg-bubble:hover .msg-delete { opacity: 0.6; }
@@ -1559,8 +1560,8 @@ div:hover > .avatar-crop-hover {
 /* ─── Avatar + Admin messages ────────────────────────────────────────────── */
 .msg-author-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; padding-left: 36px; }
 .msg-admin-badge { font-size: 0.75rem; }
-.msg-with-avatar { display: flex; align-items: flex-end; gap: 6px; }
-.msg-avatar-slot { width: 28px; flex-shrink: 0; }
+/* msg-with-avatar remplacé par msg-row */
+
 .msg-avatar-slot .avatar-letter { width: 28px !important; height: 28px !important; font-size: 0.7rem !important; }
 .msg-avatar-slot .avatar-img { width: 28px !important; height: 28px !important; border-radius: 50%; object-fit: cover; }
 .chat-msg.grouped { margin-top: 2px; }
@@ -1590,7 +1591,7 @@ div:hover > .avatar-crop-hover {
 .chat-msg.admin-msg.mine .mention { color: var(--la-coral); }
 
 /* ─── Réactions emoji ────────────────────────────────────────────────────── */
-.msg-bubble-wrap { position: relative; }
+.msg-bubble-wrap { position: relative; display: inline-block; }
 
 .msg-actions { display: flex; align-items: center; gap: 4px; margin-left: 6px; flex-shrink: 0; }
 .msg-react-btn { background: transparent; border: none; cursor: pointer; font-size: 0.8rem; opacity: 0; transition: opacity 0.15s; padding: 0 2px; line-height: 1; }
@@ -1601,9 +1602,7 @@ div:hover > .avatar-crop-hover {
 .emoji-picker-wrap.picker-right { left: 0; }
 .emoji-picker-wrap.picker-left  { right: 0; }
 
-.msg-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
-.msg-reactions.reactions-mine   { justify-content: flex-end; }
-.msg-reactions.reactions-theirs { justify-content: flex-start; }
+
 .reaction-chip { display: flex; align-items: center; gap: 3px; background: rgba(255,255,255,0.07); border: 1px solid var(--border); border-radius: 12px; padding: 2px 8px; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; color: var(--text); }
 .reaction-chip:hover { background: rgba(255,255,255,0.12); }
 .reaction-chip.mine { background: rgba(255,107,53,0.2); border-color: var(--la-coral); }
@@ -1649,7 +1648,6 @@ div:hover > .avatar-crop-hover {
 .room-btn.has-unread { font-weight: 600; }
 
 /* ─── Hover actions (✏️ 😊 🗑) ───────────────────────────────────────────── */
-.msg-bubble-wrap { position: relative; }
 .msg-bubble { position: relative; }
 .msg-hover-actions {
   position: absolute;
@@ -1687,3 +1685,40 @@ div:hover > .avatar-crop-hover {
 .msg-action-btn { background: transparent; border: none; cursor: pointer; font-size: 0.95rem; padding: 2px 4px; border-radius: 6px; transition: background 0.15s; line-height: 1; }
 .msg-action-btn:hover { background: rgba(255,255,255,0.1); }
 .msg-action-delete:hover { background: rgba(255,80,80,0.15); }
+
+/* ─── Séparateur nouveaux messages ──────────────────────────────────────── */
+.unread-separator { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+.unread-separator::before, .unread-separator::after { content: ''; flex: 1; height: 1px; background: var(--la-coral); opacity: 0.5; }
+.unread-separator span { color: var(--la-coral); font-size: 0.75rem; font-weight: 600; white-space: nowrap; padding: 2px 8px; border: 1px solid var(--la-coral); border-radius: 10px; opacity: 0.8; }
+
+/* ─── Message épinglé ────────────────────────────────────────────────────── */
+.pinned-msg-bar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(212,160,23,0.12); border-bottom: 1px solid rgba(212,160,23,0.3); font-size: 0.85rem; }
+.pinned-icon { font-size: 1rem; flex-shrink: 0; }
+.pinned-content { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pinned-unpin { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 2px 6px; border-radius: 4px; }
+.pinned-unpin:hover { background: rgba(255,255,255,0.1); }
+
+/* ─── Structure message (Discord-like) ──────────────────────────────────── */
+.msg-row { display: flex; align-items: flex-end; gap: 6px; }
+.chat-msg.mine .msg-row { flex-direction: row-reverse; }
+
+.msg-avatar-slot { width: 28px; flex-shrink: 0; align-self: flex-end; }
+.msg-avatar-slot .avatar-letter { width: 28px !important; height: 28px !important; font-size: 0.7rem !important; }
+.msg-avatar-slot .avatar-img    { width: 28px !important; height: 28px !important; border-radius: 50%; object-fit: cover; }
+
+/* Colonne : bulle + réactions + heure — largeur naturelle de la bulle */
+.msg-col { display: flex; flex-direction: column; align-items: flex-start; max-width: 100%; }
+.chat-msg.mine .msg-col { align-items: flex-end; }
+
+/* Bulle — inline-block pour ne pas s'étirer */
+.msg-bubble-wrap { position: relative; display: inline-block; max-width: 100%; }
+
+/* Réactions — sous la bulle, largeur libre, ne touchent pas la bulle */
+.msg-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.msg-reactions.reactions-mine   { justify-content: flex-end; }
+.msg-reactions.reactions-theirs { justify-content: flex-start; }
+
+/* Heure — sous les réactions */
+.msg-time { font-size: 0.65rem; color: var(--muted); margin-top: 2px; display: block; }
+.chat-msg.mine .msg-time  { text-align: right; }
+.chat-msg.theirs .msg-time { text-align: left; }
