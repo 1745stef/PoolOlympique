@@ -622,6 +622,20 @@ app.post('/chat/:room_id/messages', authMiddleware, async (req, res) => {
   res.json(data);
 });
 
+
+// PATCH /chat/messages/:id — éditer un message
+app.patch('/chat/messages/:id', authMiddleware, async (req, res) => {
+  const { content } = req.body;
+  if (!content?.trim()) return res.status(400).json({ error: 'Contenu requis' });
+  const { data: msg } = await supabase.from('messages').select('user_id').eq('id', req.params.id).single();
+  if (!msg) return res.status(404).json({ error: 'Message introuvable' });
+  if (msg.user_id !== req.user.id) return res.status(403).json({ error: 'Non autorisé' });
+  const { error } = await supabase.from('messages')
+    .update({ content: content.trim(), edited_at: new Date().toISOString() })
+    .eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
 // DELETE /chat/messages/:id — soft delete (admin seulement)
 app.delete('/chat/messages/:id', requireLevel(2), async (req, res) => {
   const { error } = await supabase.from('messages')

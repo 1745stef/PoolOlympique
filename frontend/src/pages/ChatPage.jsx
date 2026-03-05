@@ -89,7 +89,7 @@ function renderContent(content, myUsername) {
   });
 }
 
-export default function ChatPage() {
+export default function ChatPage({ onUnreadChange }) {
   const { user } = useAuth();
   const { t, lang } = useLang();
   const myLevel = getMyLevel();
@@ -107,6 +107,11 @@ export default function ChatPage() {
   const [adminMode, setAdminMode]                   = useState(false);
   const [showInputPicker, setShowInputPicker]       = useState(false);
   const [showGiphy, setShowGiphy]                   = useState(false);
+  const [showScrollBtn, setShowScrollBtn]           = useState(false);
+  const [unreadCount, setUnreadCount]               = useState(0);
+  const [editingMsgId, setEditingMsgId]             = useState(null);
+  const [roomUnread, setRoomUnread]                 = useState({});
+  const [editingText, setEditingText]               = useState('');
   const [giphySearch, setGiphySearch]               = useState('');
   const [reactions, setReactions]                   = useState({}); // { message_id: [{emoji, user_id}] }
   const [pickerMsgId, setPickerMsgId]               = useState(null); // id du msg dont le picker est ouvert
@@ -121,10 +126,45 @@ export default function ChatPage() {
   const pickerRef      = useRef(null);
   const inputPickerRef  = useRef(null);
   const giphyRef        = useRef(null);
+  const messagesContainerRef = useRef(null);
+
+  useEffect(() => {
+    const total = Object.values(roomUnread).reduce((a, b) => a + b, 0);
+    onUnreadChange?.(total);
+  }, [roomUnread, onUnreadChange]);
+
+  const getLastRead = (roomId) => {
+    try { return parseInt(localStorage.getItem(`last_read_${roomId}`) || '0'); } catch { return 0; }
+  };
+  const setLastRead = (roomId) => {
+    try { localStorage.setItem(`last_read_${roomId}`, Date.now()); } catch {}
+    setRoomUnread(prev => ({ ...prev, [roomId]: 0 }));
+  };
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
+    setUnreadCount(0);
+    setTimeout(() => {
+      const container = messagesContainerRef.current;
+      if (!container) return;
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 60);
+    }, 300);
   }, []);
+
+  // Détecter si l'utilisateur a scrollé vers le haut
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      setShowScrollBtn(distanceFromBottom > 60);
+      if (distanceFromBottom <= 150) setUnreadCount(0);
+    };
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [activeRoom]);
 
   // Fermer Giphy au clic extérieur
   useEffect(() => {
@@ -182,7 +222,7 @@ export default function ChatPage() {
     supabase.from('messages')
       .select('*').eq('room_id', activeRoom.id).is('deleted_at', null)
       .order('created_at', { ascending: true }).limit(100)
-      .then(({ data }) => { setMessages(data || []); setTimeout(() => scrollToBottom('instant'), 50); });
+      .then(({ data }) => { setMessages(data || []); setTimeout(() => scrollToBottom('instant'), 50); setLastRead(roomId); });
 
     // Charger les réactions du salon
     chatApi.getReactions(activeRoom.id).then(data => {
@@ -231,6 +271,26 @@ export default function ChatPage() {
     setUnread(prev => ({ ...prev, [activeRoom.id]: 0 }));
     return () => { if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; } };
   }, [activeRoom?.id]);
+
+  const startEdit = (msg) => {
+    setEditingMsgId(msg.id);
+    setEditingText(msg.content);
+  };
+
+  const cancelEdit = () => {
+    setEditingMsgId(null);
+    setEditingText('');
+  };
+
+  const submitEdit = async (msgId) => {
+    const trimmed = editingText.trim();
+    if (!trimmed) return;
+    try {
+      await chatApi.editMessage(msgId, trimmed);
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: trimmed, edited_at: new Date().toISOString() } : m));
+    } catch {}
+    cancelEdit();
+  };
 
   const handleGifClick = async (gif) => {
     setShowGiphy(false);
@@ -361,7 +421,7 @@ export default function ChatPage() {
               <span className="chat-header-name">{activeRoom.type === 'general' ? t('chatGeneral') : activeRoom.name}</span>
             </div>
 
-            <div className="chat-messages">
+            <div className="chat-messages" ref={messagesContainerRef}>
               {messages.length === 0 && <div className="chat-empty">{t('chatEmpty')}</div>}
               {grouped.map((item) => {
                 if (item.type === 'date') return (
@@ -397,16 +457,38 @@ export default function ChatPage() {
                         </div>
                       )}
                       <div className="msg-bubble-wrap">
-                      <div className={`msg-bubble${item.is_gif ? ' gif-bubble' : ''}`} onMouseEnter={() => {}} onMouseLeave={() => {}}>
-                        {item.is_gif
+                        <div className={`msg-bubble${item.is_gif ? ' gif-bubble' : ''}`}>
+                        {/* Barre d'actions flottante — ancrée sur la bulle */}
+                        {editingMsgId !== item.id && (
+                          <div className={`msg-hover-actions ${isMe ? 'actions-left' : 'actions-right'}`}>
+                            {isMe && !item.is_gif && <button className="msg-action-btn" onClick={() => startEdit(item)} title="Modifier">✏️</button>}
+                            <button className="msg-action-btn" onClick={() => setPickerMsgId(pickerMsgId === item.id ? null : item.id)} title="Réagir">😊</button>
+                            {isAdmin && <button className="msg-action-btn msg-action-delete" onClick={() => handleDelete(item.id)} title={t('chatDelete')}>🗑</button>}
+                          </div>
+                        )}
+                        {editingMsgId === item.id ? (
+                          <div className="msg-edit-wrap">
+                            <textarea
+                              className="msg-edit-input"
+                              value={editingText}
+                              onChange={e => setEditingText(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit(item.id); }
+                                if (e.key === 'Escape') cancelEdit();
+                              }}
+                              autoFocus
+                              rows={2}
+                            />
+                            <div className="msg-edit-actions">
+                              <button className="msg-edit-save" onClick={() => submitEdit(item.id)}>✓</button>
+                              <button className="msg-edit-cancel" onClick={cancelEdit}>✕</button>
+                            </div>
+                          </div>
+                        ) : item.is_gif
                           ? <img src={item.content} alt="GIF" className="msg-gif" />
                           : <span className="msg-content">{renderContent(item.content, user?.username)}</span>
                         }
-                        <div className="msg-actions">
-                          <span className="msg-time">{formatTime(item.created_at)}</span>
-                          <button className="msg-react-btn" onClick={() => setPickerMsgId(pickerMsgId === item.id ? null : item.id)}>😊</button>
-                          {isAdmin && <button className="msg-delete" onClick={() => handleDelete(item.id)} title={t('chatDelete')}>🗑</button>}
-                        </div>
+
                       </div>
                       {/* Emoji picker emoji-mart */}
                       {pickerMsgId === item.id && (
@@ -414,12 +496,22 @@ export default function ChatPage() {
                           ref={pickerRef}
                           className={`emoji-picker-wrap ${isMe ? 'picker-left' : 'picker-right'}`}
                           style={(() => {
-                            // Positionner vers le bas si le message est dans le haut de la fenêtre
                             const el = document.getElementById(`msg-${item.id}`);
                             if (!el) return {};
                             const rect = el.getBoundingClientRect();
+                            const viewportHeight = window.innerHeight;
+                            const spaceBelow = viewportHeight - rect.bottom;
                             const spaceAbove = rect.top;
-                            return spaceAbove < 450 ? { top: '100%', bottom: 'auto' } : {};
+                            // Picker height ~440px — ouvrir vers le bas seulement si assez de place
+                            if (spaceBelow >= 460) return { bottom: 'auto', top: '100%' };
+                            if (spaceAbove >= 460) return {};  // vers le haut (défaut CSS)
+                            // Ni assez haut ni assez bas — centrer sur viewport avec position fixed
+                            return {
+                              position: 'fixed',
+                              top: Math.max(8, Math.min(viewportHeight - 460, rect.top - 200)),
+                              bottom: 'auto',
+                              ...(isMe ? { right: Math.max(8, window.innerWidth - rect.left + 6) } : { left: Math.max(8, rect.right + 6) })
+                            };
                           })()}
                         >
                           <Picker
@@ -434,26 +526,27 @@ export default function ChatPage() {
                           />
                         </div>
                       )}
-                      {/* Réactions affichées */}
-                      {(reactions[item.id] || []).length > 0 && (
-                        <div className={`msg-reactions ${isMe ? 'reactions-left' : 'reactions-right'}`}>
-                          {Object.entries(
-                            (reactions[item.id] || []).reduce((acc, r) => {
-                              acc[r.emoji] = (acc[r.emoji] || []);
-                              acc[r.emoji].push(r.user_id);
-                              return acc;
-                            }, {})
-                          ).map(([emoji, uids]) => (
-                            <button key={emoji}
-                              className={`reaction-chip${uids.includes(user?.id) ? ' mine' : ''}`}
-                              onClick={() => handleReaction(item.id, emoji)}>
-                              {emoji} <span>{uids.length}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
                     </div>
+                    {/* Réactions + heure — hors de la bulle */}
+                    {(reactions[item.id] || []).length > 0 && (
+                      <div className={`msg-reactions ${isMe ? 'reactions-mine' : 'reactions-theirs'}`}>
+                        {Object.entries(
+                          (reactions[item.id] || []).reduce((acc, r) => {
+                            acc[r.emoji] = (acc[r.emoji] || []);
+                            acc[r.emoji].push(r.user_id);
+                            return acc;
+                          }, {})
+                        ).map(([emoji, uids]) => (
+                          <button key={emoji}
+                            className={`reaction-chip${uids.includes(user?.id) ? ' mine' : ''}`}
+                            onClick={() => handleReaction(item.id, emoji)}>
+                            {emoji} <span>{uids.length}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <span className="msg-time">{formatTime(item.created_at)}{item.edited_at && editingMsgId !== item.id ? <em className="msg-edited"> · {t('msgEdited')}</em> : null}</span>
                   </div>
                 );
               })}
@@ -472,6 +565,11 @@ export default function ChatPage() {
                     </button>
                   ))}
                 </div>
+              )}
+              {showScrollBtn && !pickerMsgId && (
+                <button className="scroll-to-bottom-btn" onClick={() => scrollToBottom('smooth')}>
+                  {unreadCount > 0 ? `↓ ${unreadCount} nouveau${unreadCount > 1 ? 'x' : ''}` : '↓'}
+                </button>
               )}
               {showGiphy && (
                 <div ref={giphyRef} className="giphy-panel">

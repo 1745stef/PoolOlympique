@@ -101,6 +101,7 @@ export const olympicApi = {
 export const chatApi = {
   getRooms:      ()                    => apiFetch('/chat/rooms'),
   sendMessage:   (room_id, content, is_admin_msg = false, is_gif = false) => apiFetch(`/chat/${room_id}/messages`, { method: 'POST', body: JSON.stringify({ content, is_admin_msg, is_gif }) }),
+  editMessage:   (msg_id, content) => apiFetch(`/chat/messages/${msg_id}`, { method: 'PATCH', body: JSON.stringify({ content }) }),
   deleteMessage:   (id)                    => apiFetch(`/chat/messages/${id}`, { method: 'DELETE' }),
   toggleReaction:  (message_id, emoji)     => apiFetch(`/chat/messages/${message_id}/reactions`, { method: 'POST', body: JSON.stringify({ emoji }) }),
   getReactions:    (room_id)               => apiFetch(`/chat/messages/reactions?room_id=${room_id}`),

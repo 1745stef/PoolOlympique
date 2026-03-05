@@ -29,6 +29,7 @@ function AppContent() {
   const { user, loading, logout } = useAuth();
   const { t } = useLang();
   const [tab, setTab] = useState('picks');
+  const [totalUnread, setTotalUnread] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const [settings, setSettings] = useState({ inactivity_enabled: false, inactivity_timeout: 30, inactivity_warning: 2 });
 
@@ -72,7 +73,7 @@ function AppContent() {
   if (user.must_change_password) return <ChangePasswordPage />;
 
   return (
-    <div className="app">
+    <div className={`app${tab === 'chat' ? ' chat-active' : ''}`}>
       {showWarning && (
         <InactivityWarning
           warningMin={settings.inactivity_warning}
@@ -98,7 +99,10 @@ function AppContent() {
         <button className={tab === 'results' ? 'active' : ''} onClick={() => setTab('results')}>{t('navResults')}</button>
         <button className={tab === 'leaderboard' ? 'active' : ''} onClick={() => setTab('leaderboard')}>{t('navLeaderboard')}</button>
         <button className={tab === 'medals' ? 'active' : ''} onClick={() => setTab('medals')}>{t('navMedals')}</button>
-        <button className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>{t('navChat')}</button>
+        <button className={tab === 'chat' ? 'active' : ''} onClick={() => { setTab('chat'); setTotalUnread(0); }}>
+          {t('navChat')}
+          {tab !== 'chat' && totalUnread > 0 && <span className="nav-unread-badge">{totalUnread > 99 ? '99+' : totalUnread}</span>}
+        </button>
         {getMyLevel(user) <= 3 && (
           <button className={`${tab === 'admin' ? 'active' : ''} admin-tab`} onClick={() => setTab('admin')}>{t('navAdmin')}</button>
         )}
@@ -110,7 +114,7 @@ function AppContent() {
         {tab === 'results'     && <MyResultsPage />}
         {tab === 'leaderboard' && <LeaderboardPage />}
         {tab === 'medals'      && <MedalsPage />}
-        {tab === 'chat'        && <ChatPage />}
+        {tab === 'chat'        && <ChatPage onUnreadChange={setTotalUnread} />}
         {tab === 'admin'       && getMyLevel(user) <= 3 && <AdminPage onSettingsChange={setSettings} />}
       </main>
     </div>
