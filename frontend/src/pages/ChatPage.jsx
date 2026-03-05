@@ -89,6 +89,39 @@ function renderContent(content, myUsername) {
   });
 }
 
+
+// ─── Regex détection URL ───────────────────────────────────────────────────
+const URL_REGEX = /https?:\/\/[^\s<>"{}|\^`[\]]+/i;
+
+// ─── Composant aperçu de lien ──────────────────────────────────────────────
+function LinkPreview({ url }) {
+  const [preview, setPreview] = React.useState(null);
+  const [loaded, setLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!url) return;
+    chatApi.getLinkPreview(url)
+      .then(data => { setPreview(data); setLoaded(true); })
+      .catch(() => setLoaded(true));
+  }, [url]);
+
+  if (!loaded || !preview?.title) return null;
+
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="link-preview">
+      {preview.image && (
+        <img src={preview.image} alt="" className="link-preview-img"
+          onError={e => e.target.style.display = 'none'} />
+      )}
+      <div className="link-preview-text">
+        {preview.siteName && <span className="link-preview-site">{preview.siteName}</span>}
+        <span className="link-preview-title">{preview.title}</span>
+        {preview.description && <span className="link-preview-desc">{preview.description.slice(0, 100)}{preview.description.length > 100 ? '…' : ''}</span>}
+      </div>
+    </a>
+  );
+}
+
 export default function ChatPage({ onUnreadChange }) {
   const { user } = useAuth();
   const { t, lang } = useLang();
@@ -562,7 +595,11 @@ export default function ChatPage({ onUnreadChange }) {
                               </div>
                             ) : item.is_gif
                               ? <img src={item.content} alt="GIF" className="msg-gif" />
-                              : <span className="msg-content">{renderContent(item.content, user?.username)}</span>
+                              : <>{!isEmojiOnly && URL_REGEX.test(item.content) && (
+                                  <LinkPreview url={item.content.match(URL_REGEX)?.[0]} />
+                                )}
+                                <span className="msg-content">{renderContent(item.content, user?.username)}</span>
+                              </>
                             }
                           </div>
 

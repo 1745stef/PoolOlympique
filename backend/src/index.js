@@ -1,4 +1,5 @@
 import express from 'express';
+import ogs from 'open-graph-scraper';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -647,6 +648,37 @@ app.post('/chat/messages/:id/resolve', requireLevel(2), async (req, res) => {
   const { error } = await supabase.from('reports').update({ resolved: true }).eq('message_id', req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true });
+});
+
+// Cache en mémoire pour les previews de liens
+const linkPreviewCache = new Map();
+
+// GET /chat/link-preview?url=... — aperçu Open Graph d'un lien
+app.get('/chat/link-preview', authMiddleware, async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'URL requise' });
+
+  // Retourner depuis le cache si disponible
+  if (linkPreviewCache.has(url)) return res.json(linkPreviewCache.get(url));
+
+  try {
+    const { result } = await ogs({ url, timeout: 5000, fetchOptions: { headers: { 'user-agent': 'Mozilla/5.0' } } });
+    const preview = {
+      title: result.ogTitle || result.twitterTitle || null,
+      description: result.ogDescription || result.twitterDescription || null,
+      image: result.ogImage?.[0]?.url || result.twitterImage?.[0]?.url || null,
+      siteName: result.ogSiteName || null,
+      url,
+    };
+    linkPreviewCache.set(url, preview);
+    // Limiter le cache à 200 entrées
+    if (linkPreviewCache.size > 200) linkPreviewCache.delete(linkPreviewCache.keys().next().value);
+    res.json(preview);
+  } catch {
+    const empty = { title: null, description: null, image: null, siteName: null, url };
+    linkPreviewCache.set(url, empty);
+    res.json(empty);
+  }
 });
 // POST /chat/messages/:id/report — signaler un message
 app.post('/chat/messages/:id/report', authMiddleware, async (req, res) => {

@@ -105,6 +105,7 @@ export const chatApi = {
   reportMessage:  (msg_id, reason) => apiFetch(`/chat/messages/${msg_id}/report`, { method: 'POST', body: JSON.stringify({ reason }) }),
   getReports:     (room_id) => apiFetch(`/chat/${room_id}/reports`),
   resolveReport:  (msg_id) => apiFetch(`/chat/messages/${msg_id}/resolve`, { method: 'POST' }),
+  getLinkPreview: (url) => apiFetch(`/chat/link-preview?url=${encodeURIComponent(url)}`),
   pinMessage:    (msg_id, pinned) => apiFetch(`/chat/messages/${msg_id}/pin`, { method: 'POST', body: JSON.stringify({ pinned }) }),
   getPinned:     (room_id) => apiFetch(`/chat/${room_id}/pinned`),
   deleteMessage:   (id)                    => apiFetch(`/chat/messages/${id}`, { method: 'DELETE' }),
