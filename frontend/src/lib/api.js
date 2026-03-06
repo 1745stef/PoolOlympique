@@ -111,3 +111,14 @@ export const chatApi = {
   toggleReaction:  (message_id, emoji)     => apiFetch(`/chat/messages/${message_id}/reactions`, { method: 'POST', body: JSON.stringify({ emoji }) }),
   getReactions:    (room_id)               => apiFetch(`/chat/messages/reactions?room_id=${room_id}`),
 };
+
+export const roomReadsApi = {
+  getAll:  ()        => apiFetch('/chat/room-reads'),
+  setRead: (room_id) => apiFetch(`/chat/room-reads/${room_id}`, { method: 'POST' }),
+};
+
+export const mutesApi = {
+  getAll:  ()                              => apiFetch('/chat/mutes'),
+  mute:    (user_id, reason, expires_at)   => apiFetch('/chat/mutes', { method: 'POST', body: JSON.stringify({ user_id, reason, expires_at }) }),
+  unmute:  (id)                            => apiFetch(`/chat/mutes/${id}`, { method: 'DELETE' }),
+};

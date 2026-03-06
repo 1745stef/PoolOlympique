@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useLang } from '../hooks/useLanguage';
-import { chatApi, adminApi } from '../lib/api';
+import { chatApi, adminApi, roomReadsApi } from '../lib/api';
 import { Avatar } from '../components/UserMenu';
 import Picker from '@emoji-mart/react';
 import { GiphyFetch } from '@giphy/js-fetch-api';
@@ -122,7 +122,7 @@ function LinkPreview({ url }) {
   );
 }
 
-export default function ChatPage({ onUnreadChange }) {
+export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit }) {
   const { user } = useAuth();
   const { t, lang } = useLang();
   const myLevel = getMyLevel();
@@ -135,7 +135,6 @@ export default function ChatPage({ onUnreadChange }) {
   const [input, setInput]           = useState('');
   const [loading, setLoading]       = useState(true);
   const [sending, setSending]       = useState(false);
-  const [unread, setUnread]         = useState({});
 
   const [adminMode, setAdminMode]                   = useState(false);
   const [showInputPicker, setShowInputPicker]       = useState(false);
@@ -166,16 +165,8 @@ export default function ChatPage({ onUnreadChange }) {
   const giphyRef        = useRef(null);
   const messagesContainerRef = useRef(null);
 
-  useEffect(() => {
-    const total = Object.values(unread).reduce((a, b) => a + b, 0);
-    onUnreadChange?.(total);
-  }, [unread, onUnreadChange]);
-
-  const getLastRead = (roomId) => {
-    try { return parseInt(localStorage.getItem(`last_read_${roomId}`) || '0'); } catch { return 0; }
-  };
   const setLastRead = (roomId) => {
-    try { localStorage.setItem(`last_read_${roomId}`, Date.now()); } catch {}
+    roomReadsApi.setRead(roomId).catch(() => {});
     setUnread(prev => ({ ...prev, [roomId]: 0 }));
   };
 
@@ -191,21 +182,6 @@ export default function ChatPage({ onUnreadChange }) {
   }, []);
 
 
-  // Channel global — badges non lus pour tous les salons inactifs
-  useEffect(() => {
-    const globalChannel = supabase.channel('global:messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          const m = payload.new;
-          if (!m || m.deleted_at) return;
-          // Incrémenter seulement si ce n'est pas le salon actif ET pas notre propre message
-          if (m.room_id !== activeRoomRef.current?.id) {
-            setUnread(prev => ({ ...prev, [m.room_id]: (prev[m.room_id] || 0) + 1 }));
-          }
-        })
-      .subscribe();
-    return () => supabase.removeChannel(globalChannel);
-  }, []);
 
   // Détecter si l'utilisateur a scrollé vers le haut
   useEffect(() => {
@@ -263,41 +239,47 @@ export default function ChatPage({ onUnreadChange }) {
         setRooms(r);
         if (r.length > 0) setActiveRoom(r[0]);
         setUsers(u || []);
+        onInit?.(r);
       })
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { activeRoomRef.current = activeRoom; }, [activeRoom]);
+  useEffect(() => {
+    activeRoomRef.current = activeRoom;
+    if (activeRoomIdRef) activeRoomIdRef.current = activeRoom?.id || null;
+  }, [activeRoom]);
 
   useEffect(() => {
     if (!activeRoom) return;
     if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
     setMessages([]);
 
-    supabase.from('messages')
-      .select('*')
-      .eq('room_id', activeRoom.id).is('deleted_at', null)
-      .order('created_at', { ascending: true }).limit(100)
-      .then(({ data }) => {
-        const msgs = data || [];
-        const lastRead = getLastRead(activeRoom.id);
-        // Trouver le premier message non lu
-        const idx = lastRead > 0
-          ? msgs.findIndex(m => new Date(m.created_at).getTime() > lastRead)
-          : -1;
-        setFirstUnreadIdx(idx > 0 ? idx : null);
-        setMessages(msgs);
-        setTimeout(() => {
-          if (idx > 0) {
-            // Scroller jusqu'au séparateur
-            const sep = document.getElementById('unread-separator');
-            if (sep) sep.scrollIntoView({ behavior: 'instant', block: 'center' });
-          } else {
-            scrollToBottom('instant');
-          }
-        }, 50);
-        setLastRead(activeRoom.id);
-      });
+(async () => {
+      const [{ data }, reads] = await Promise.all([
+        supabase.from('messages')
+          .select('*')
+          .eq('room_id', activeRoom.id).is('deleted_at', null)
+          .order('created_at', { ascending: true }).limit(100),
+        roomReadsApi.getAll().catch(() => []),
+      ]);
+      const msgs = data || [];
+      const readMap = Object.fromEntries((reads || []).map(r => [r.room_id, r.last_read]));
+      const lastRead = readMap[activeRoom.id];
+      const idx = lastRead
+        ? msgs.findIndex(m => new Date(m.created_at) > new Date(lastRead))
+        : -1;
+      setFirstUnreadIdx(idx > 0 ? idx : null);
+      setMessages(msgs);
+      setTimeout(() => {
+        if (idx > 0) {
+          const sep = document.getElementById('unread-separator');
+          if (sep) sep.scrollIntoView({ behavior: 'instant', block: 'center' });
+        } else {
+          scrollToBottom('instant');
+        }
+      }, 50);
+      setLastRead(activeRoom.id);
+    })();
       chatApi.getPinned(activeRoom.id).then(({ data }) => setPinnedMsg(data || null)).catch(() => setPinnedMsg(null));
       if (isAdmin) chatApi.getReports(activeRoom.id).then(({ data }) => setRoomReports(data || [])).catch(() => setRoomReports([]));
 
@@ -335,7 +317,10 @@ export default function ChatPage({ onUnreadChange }) {
           const { data: full } = await supabase.from('messages').select('*').eq('id', m.id).single();
           const msg = full || m;
           setMessages(prev => prev.find(x => x.id === msg.id) ? prev : [...prev, msg]);
-          setTimeout(() => scrollToBottom('smooth'), 50);
+          // Ne pas scroller automatiquement si c'est notre propre message (déjà géré à l'envoi)
+          if (msg.user_id !== user?.id) {
+            setTimeout(() => scrollToBottom('smooth'), 50);
+          }
         })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
         (payload) => { if (payload.new.deleted_at) setMessages(prev => prev.filter(m => m.id !== payload.new.id)); })
@@ -506,7 +491,7 @@ export default function ChatPage({ onUnreadChange }) {
   const handleRoomClick = (room) => {
     setActiveRoom(room);
     setPickerMsgId(null);
-    setUnread(prev => ({ ...prev, [room.id]: 0 }));
+    setLastRead(room.id);
   };
 
   if (loading) return <div className="chat-loading"><div className="spinner" /><p>{t('loading')}</p></div>;
