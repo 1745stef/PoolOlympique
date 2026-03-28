@@ -98,7 +98,8 @@ export const olympicApi = {
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 export const chatApi = {
   getRooms:      ()                    => apiFetch('/chat/rooms'),
-  sendMessage:   (room_id, content, is_admin_msg = false, is_gif = false) => apiFetch(`/chat/${room_id}/messages`, { method: 'POST', body: JSON.stringify({ content, is_admin_msg, is_gif }) }),
+  getMembers:    (room_id)              => apiFetch(`/chat/${room_id}/members`),
+  sendMessage:   (room_id, content, is_admin_msg = false, is_gif = false, reply_to_id = null, reply_to_content = null, reply_to_username = null) => apiFetch(`/chat/${room_id}/messages`, { method: 'POST', body: JSON.stringify({ content, is_admin_msg, is_gif, reply_to_id, reply_to_content, reply_to_username }) }),
   editMessage:   (msg_id, content) => apiFetch(`/chat/messages/${msg_id}`, { method: 'PATCH', body: JSON.stringify({ content }) }),
   reportMessage:  (msg_id, reason) => apiFetch(`/chat/messages/${msg_id}/report`, { method: 'POST', body: JSON.stringify({ reason }) }),
   getReports:     (room_id) => apiFetch(`/chat/${room_id}/reports`),

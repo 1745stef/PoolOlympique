@@ -575,6 +575,31 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🏅 API démarrée sur http://localhost:${PORT}`));
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
+
+// GET /chat/:room_id/members — membres du salon (accessible à tous les utilisateurs connectés)
+app.get('/chat/:room_id/members', authMiddleware, async (req, res) => {
+  const room_id = req.params.room_id;
+  let userIds = [];
+
+  if (room_id === 'general') {
+    // Général — tous les utilisateurs
+    const { data } = await supabase.from('users')
+      .select('id, username, avatar_url, avatar_type, avatar_color, avatar_text_color');
+    return res.json(data || []);
+  }
+
+  if (room_id.startsWith('group_')) {
+    const groupId = room_id.replace('group_', '');
+    const { data: members } = await supabase.from('group_members')
+      .select('user_id, users(id, username, avatar_url, avatar_type, avatar_color, avatar_text_color)')
+      .eq('group_id', groupId);
+    const users = (members || []).map(m => m.users).filter(Boolean);
+    return res.json(users);
+  }
+
+  res.json([]);
+});
+
 // GET /chat/rooms — salons accessibles par l'utilisateur
 app.get('/chat/rooms', authMiddleware, async (req, res) => {
   const level = req.user.role_level ?? ROLE_PLAYER;
@@ -598,7 +623,7 @@ app.get('/chat/rooms', authMiddleware, async (req, res) => {
 
 // POST /chat/:room_id/messages — envoyer un message
 app.post('/chat/:room_id/messages', authMiddleware, checkMuted, async (req, res) => {
-  const { content, is_admin_msg, is_gif } = req.body;
+  const { content, is_admin_msg, is_gif, reply_to_id, reply_to_content, reply_to_username } = req.body;
   if (!content || !content.trim()) return res.status(400).json({ error: 'Message vide' });
   if (content.length > 1000) return res.status(400).json({ error: 'Message trop long (max 1000 car.)' });
 
@@ -637,6 +662,9 @@ app.post('/chat/:room_id/messages', authMiddleware, checkMuted, async (req, res)
     avatar_type:        profile?.avatar_type || 'letter',
     avatar_color:       profile?.avatar_color || '#000000',
     avatar_text_color:  profile?.avatar_text_color || '#FFFFFF',
+    reply_to_id:        reply_to_id || null,
+    reply_to_content:   reply_to_content || null,
+    reply_to_username:  reply_to_username || null,
   }).select().single();
 
   if (error) return res.status(500).json({ error: error.message });
@@ -760,10 +788,14 @@ app.post('/chat/mutes', requireLevel(2), async (req, res) => {
   const adminLevel  = req.user.role_level ?? 99;
   if (adminLevel >= targetLevel) return res.status(403).json({ error: 'Vous ne pouvez pas muter un utilisateur de niveau supérieur ou égal' });
 
-  const { data, error } = await supabase.from('mutes').insert({
+  const { data: inserted, error } = await supabase.from('mutes').insert({
     user_id, muted_by: req.user.id, reason, expires_at: expires_at || null,
-  }).select().single();
+  }).select('id').single();
   if (error) return res.status(500).json({ error: error.message });
+  // Recharger avec le join users pour que le frontend ait le username
+  const { data } = await supabase.from('mutes')
+    .select('*, users!user_id(username), muter:users!muted_by(username)')
+    .eq('id', inserted.id).single();
   res.json(data);
 });
 
@@ -776,12 +808,20 @@ app.delete('/chat/mutes/:id', requireLevel(2), async (req, res) => {
 
 // Middleware — vérifier si l'utilisateur est muté (utilisé dans sendMessage)
 async function checkMuted(req, res, next) {
+  const now = new Date().toISOString();
+  // Nettoyer les mutes expirés au passage
+  await supabase.from('mutes')
+    .delete()
+    .eq('user_id', req.user.id)
+    .not('expires_at', 'is', null)
+    .lt('expires_at', now);
+  // Vérifier s'il reste un mute actif
   const { data } = await supabase.from('mutes')
     .select('id, expires_at, reason')
     .eq('user_id', req.user.id)
-    .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
-    .limit(1).single();
-  if (data) return res.status(403).json({ error: `Vous êtes muté${data.reason ? ` : ${data.reason}` : ''}` });
+    .or('expires_at.is.null,expires_at.gt.' + now)
+    .limit(1).maybeSingle();
+  if (data) return res.status(403).json({ error: `Vous êtes muté${data.reason ? ` : ${data.reason}` : ''}`, muted: true });
   next();
 }
 // GET /chat/link-preview?url=... — aperçu Open Graph d'un lien

@@ -30,9 +30,12 @@ function AppContent() {
   const { user, loading, logout } = useAuth();
   const { t } = useLang();
   const [tab, setTab] = useState('picks');
+  const tabRef = useRef('picks'); // ref pour éviter closure stale dans Realtime
   const [unread, setUnread]       = useState({});
   const activeRoomIdRef           = useRef(null);
   const totalUnread = Object.values(unread).reduce((a, b) => a + b, 0);
+  // Sync tabRef pour le channel Realtime (évite closure stale)
+  useEffect(() => { tabRef.current = tab; }, [tab]);
   const [showWarning, setShowWarning] = useState(false);
   const [settings, setSettings] = useState({ inactivity_enabled: false, inactivity_timeout: 30, inactivity_warning: 2 });
 
@@ -70,7 +73,7 @@ function AppContent() {
           if (!m || m.deleted_at) return;
           if (m.user_id === user.id) return;
           const currentRoomId = activeRoomIdRef.current;
-          if (m.room_id !== currentRoomId || tab !== 'chat') {
+          if (m.room_id !== currentRoomId || tabRef.current !== 'chat') {
             setUnread(prev => ({ ...prev, [m.room_id]: (prev[m.room_id] || 0) + 1 }));
           }
         })

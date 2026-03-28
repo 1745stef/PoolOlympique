@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useLang } from '../hooks/useLanguage';
-import { chatApi, adminApi, roomReadsApi } from '../lib/api';
+import { chatApi, roomReadsApi } from '../lib/api';
 import { Avatar } from '../components/UserMenu';
 import Picker from '@emoji-mart/react';
 import { GiphyFetch } from '@giphy/js-fetch-api';
@@ -144,9 +144,8 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
   const fileInputRef = useRef(null);
   const [unreadCount, setUnreadCount]               = useState(0);
   const [editingMsgId, setEditingMsgId]             = useState(null);
-  const [firstUnreadIdx, setFirstUnreadIdx]         = useState(null);
+  const [firstUnreadId, setFirstUnreadId]           = useState(null); // ID du 1er message non lu
   const [pinnedMsg, setPinnedMsg]                   = useState(null);
-  const [reportMsgId, setReportMsgId]               = useState(null);
   const [roomReports, setRoomReports]               = useState([]);
   const [editingText, setEditingText]               = useState('');
   const [giphySearch, setGiphySearch]               = useState('');
@@ -155,6 +154,9 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [mentionIndex, setMentionIndex]   = useState(0);
   const [mentionStart, setMentionStart]   = useState(-1);
+  const [lightboxUrl, setLightboxUrl]     = useState(null);
+  const [toastMsg, setToastMsg]           = useState(null);
+  const [memberReads, setMemberReads]     = useState({}); // { user_id: last_read ISO }
 
   const messagesEndRef = useRef(null);
   const inputRef       = useRef(null);
@@ -164,38 +166,57 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
   const inputPickerRef  = useRef(null);
   const giphyRef        = useRef(null);
   const messagesContainerRef = useRef(null);
+  const isAtBottomRef        = useRef(true); // true = utilisateur en bas
 
-  const setLastRead = (roomId) => {
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 2000);
+  };
+
+  const handleCopyMessage = (text) => {
+    navigator.clipboard.writeText(text)
+      .then(() => showToast('✓ Message copié'))
+      .catch(() => showToast('Erreur copie'));
+  };
+
+  // Marquer le salon comme lu — appelé uniquement quand l'utilisateur est en bas
+  const markAsRead = useCallback((roomId) => {
     roomReadsApi.setRead(roomId).catch(() => {});
     setUnread(prev => ({ ...prev, [roomId]: 0 }));
-  };
+    setFirstUnreadId(null); // effacer le séparateur
+  }, [setUnread]);
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
+    isAtBottomRef.current = true;
     setUnreadCount(0);
-    setTimeout(() => {
-      const container = messagesContainerRef.current;
-      if (!container) return;
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 60);
-    }, 300);
-  }, []);
+    setShowScrollBtn(false);
+    // Marquer comme lu quand on arrive en bas
+    const roomId = activeRoomRef.current?.id;
+    if (roomId) markAsRead(roomId);
+  }, [markAsRead]);
 
 
 
-  // Détecter si l'utilisateur a scrollé vers le haut
+  // Détecter scroll — mettre à jour isAtBottom + markAsRead si en bas
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      setShowScrollBtn(distanceFromBottom > 60);
-      if (distanceFromBottom <= 150) setUnreadCount(0);
+      const atBottom = distanceFromBottom <= 60;
+      isAtBottomRef.current = atBottom;
+      setShowScrollBtn(!atBottom);
+      if (atBottom) {
+        setUnreadCount(0);
+        const roomId = activeRoomRef.current?.id;
+        if (roomId) markAsRead(roomId);
+      }
     };
-    container.addEventListener('scroll', handleScroll);
+    container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [activeRoom]);
+  }, [activeRoom, markAsRead]);
 
   // Fermer Giphy au clic extérieur
   useEffect(() => {
@@ -234,13 +255,14 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
   }, [pickerMsgId]);
 
   useEffect(() => {
-    Promise.all([chatApi.getRooms(), adminApi.getUsers()])
-      .then(([r, u]) => {
+    // getRooms seulement — les membres sont chargés par salon
+    chatApi.getRooms()
+      .then(r => {
         setRooms(r);
         if (r.length > 0) setActiveRoom(r[0]);
-        setUsers(u || []);
         onInit?.(r);
       })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -255,30 +277,49 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
     setMessages([]);
 
 (async () => {
-      const [{ data }, reads] = await Promise.all([
+      const [{ data }, reads, members, allReads] = await Promise.all([
         supabase.from('messages')
           .select('*')
           .eq('room_id', activeRoom.id).is('deleted_at', null)
           .order('created_at', { ascending: true }).limit(100),
         roomReadsApi.getAll().catch(() => []),
+        chatApi.getMembers(activeRoom.id).catch(() => []),
+        supabase.from('room_reads').select('user_id, last_read').eq('room_id', activeRoom.id),
       ]);
+
+      // Membres du salon
+      setUsers(members || []);
+
+      // Avatars Lu — last_read de chaque membre
+      const readsMap = {};
+      (allReads?.data || []).forEach(r => { readsMap[r.user_id] = r.last_read; });
+      setMemberReads(readsMap);
+
+      // Séparateur "Nouveaux messages"
       const msgs = data || [];
       const readMap = Object.fromEntries((reads || []).map(r => [r.room_id, r.last_read]));
       const lastRead = readMap[activeRoom.id];
-      const idx = lastRead
-        ? msgs.findIndex(m => new Date(m.created_at) > new Date(lastRead))
-        : -1;
-      setFirstUnreadIdx(idx > 0 ? idx : null);
+      const firstUnreadMsg = lastRead
+        ? msgs.find(m =>
+            new Date(m.created_at) > new Date(lastRead) &&
+            String(m.user_id) !== String(user?.id)
+          )
+        : null;
+      setFirstUnreadId(firstUnreadMsg?.id ?? null);
       setMessages(msgs);
+
+      // Scroll initial
       setTimeout(() => {
-        if (idx > 0) {
+        if (firstUnreadMsg) {
+          // Pas encore lu — scroller jusqu'au séparateur
+          isAtBottomRef.current = false;
           const sep = document.getElementById('unread-separator');
           if (sep) sep.scrollIntoView({ behavior: 'instant', block: 'center' });
         } else {
+          // Tout lu — aller en bas + markAsRead
           scrollToBottom('instant');
         }
       }, 50);
-      setLastRead(activeRoom.id);
     })();
       chatApi.getPinned(activeRoom.id).then(({ data }) => setPinnedMsg(data || null)).catch(() => setPinnedMsg(null));
       if (isAdmin) chatApi.getReports(activeRoom.id).then(({ data }) => setRoomReports(data || [])).catch(() => setRoomReports([]));
@@ -294,7 +335,7 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
     });
 
     // Realtime réactions
-    const reactChannel = supabase.channel(`reactions:${activeRoom.id}`)
+    channelRef.reactChannel = supabase.channel(`reactions:${activeRoom.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reactions' },
         () => {
           // Recharger toutes les réactions du salon
@@ -317,18 +358,41 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
           const { data: full } = await supabase.from('messages').select('*').eq('id', m.id).single();
           const msg = full || m;
           setMessages(prev => prev.find(x => x.id === msg.id) ? prev : [...prev, msg]);
-          // Ne pas scroller automatiquement si c'est notre propre message (déjà géré à l'envoi)
-          if (msg.user_id !== user?.id) {
+          if (isAtBottomRef.current) {
+            // Utilisateur en bas — scroller et marquer comme lu
             setTimeout(() => scrollToBottom('smooth'), 50);
+          } else if (String(msg.user_id) !== String(user?.id)) {
+            // Utilisateur scrollé vers le haut — incrémenter le compteur
+            setUnreadCount(prev => prev + 1);
           }
         })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `room_id=eq.${activeRoom.id}` },
         (payload) => { if (payload.new.deleted_at) setMessages(prev => prev.filter(m => m.id !== payload.new.id)); })
       .subscribe();
 
+    // Écouter les mises à jour room_reads — avatars Lu en temps réel
+    const readsChannel = supabase.channel(`reads:${activeRoom.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'room_reads',
+        filter: `room_id=eq.${activeRoom.id}`
+      }, (payload) => {
+        const r = payload.new;
+        if (!r) return;
+        // Mettre à jour les avatars Lu des autres membres seulement
+        if (String(r.user_id) !== String(user?.id)) {
+          setMemberReads(prev => ({ ...prev, [r.user_id]: r.last_read }));
+        }
+      })
+      .subscribe();
+
     channelRef.current = channel;
+    channelRef.readsChannel = readsChannel;
     setUnread(prev => ({ ...prev, [activeRoom.id]: 0 }));
-    return () => { if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; } };
+    return () => {
+      if (channelRef.current)       { supabase.removeChannel(channelRef.current);       channelRef.current = null; }
+      if (channelRef.readsChannel)  { supabase.removeChannel(channelRef.readsChannel);  channelRef.readsChannel = null; }
+      if (channelRef.reactChannel)  { supabase.removeChannel(channelRef.reactChannel);  channelRef.reactChannel = null; }
+    };
   }, [activeRoom?.id]);
 
   const handleImageUpload = async (e) => {
@@ -346,7 +410,7 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
       }
       setTimeout(() => scrollToBottom('smooth'), 50);
     } catch (err) {
-      console.error('Upload image:', err);
+      showToast('🔇 ' + (err.message || 'Erreur upload'));
     }
     setUploadingImg(false);
   };
@@ -369,7 +433,6 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
 
   const handleReport = async (msgId) => {
     await chatApi.reportMessage(msgId, null);
-    setReportMsgId(null);
     alert(t('reportSent'));
   };
 
@@ -465,8 +528,14 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
     if (!content || sending || !activeRoom) return;
     const wasAdmin = adminMode;
     setInput(''); closeMention(); setAdminMode(false); setSending(true);
-    try { await chatApi.sendMessage(activeRoom.id, content, wasAdmin); }
-    catch { setInput(content); }
+    try {
+      await chatApi.sendMessage(activeRoom.id, content, wasAdmin);
+      setTimeout(() => scrollToBottom('smooth'), 50);
+    }
+    catch (err) {
+      setInput(content);
+      showToast('🔇 ' + (err.message || 'Erreur envoi'));
+    }
     finally { setSending(false); inputRef.current?.focus(); }
   };
 
@@ -489,10 +558,40 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
   };
 
   const handleRoomClick = (room) => {
+    if (room.id === activeRoom?.id) return; // déjà sur ce salon
     setActiveRoom(room);
     setPickerMsgId(null);
-    setLastRead(room.id);
+    setFirstUnreadId(null); // reset séparateur proprement
+    isAtBottomRef.current = true; // présumer en bas jusqu'au chargement
   };
+
+  // Calculer la position de lecture de chaque membre (user_id → message_id le plus récent lu)
+  // useMemo — recalcule seulement quand memberReads ou messages changent
+  const memberReadPositions = useMemo(() => {
+    const positions = {}; // { user_id: message_id }
+    const currentUserId = user?.id ? String(user.id) : null;
+    Object.entries(memberReads).forEach(([uid, lastRead]) => {
+      // Exclure l'utilisateur courant — comparaison string explicite
+      if (!lastRead || !currentUserId || String(uid) === currentUserId) return;
+      const lastReadTime = new Date(lastRead).getTime();
+      // Trouver le dernier message dont created_at <= lastRead (tous messages inclus)
+      let best = null;
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (new Date(msg.created_at).getTime() <= lastReadTime) {
+          best = msg.id;
+          break;
+        }
+      }
+      if (best) positions[uid] = best;
+    });
+    return positions;
+  }, [memberReads, messages, user?.id]);
+
+  // Bug 1 fix — render : comparaison string explicite pour trouver le user
+  const findUserById = useCallback((uid) =>
+    users.find(u => String(u.id) === String(uid))
+  , [users]);
 
   if (loading) return <div className="chat-loading"><div className="spinner" /><p>{t('loading')}</p></div>;
 
@@ -554,7 +653,7 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
                   avatar_text_color: item.avatar_text_color || '#FFFFFF',
                   username: item.username,
                 };
-                const showSeparator = firstUnreadIdx !== null && idx === firstUnreadIdx;
+                const showSeparator = firstUnreadId !== null && item.id === firstUnreadId;
                 const isReported = isAdmin && roomReports.some(r => r.message_id === item.id);
                 return (
                   <React.Fragment key={item.id}>
@@ -591,6 +690,7 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
                               <div className={`msg-hover-actions ${isMe ? 'actions-left' : 'actions-right'}`}>
                                 {isMe && !item.is_gif && <button className="msg-action-btn" onClick={() => startEdit(item)} title="Modifier">✏️</button>}
                                 <button className="msg-action-btn" onClick={() => setPickerMsgId(pickerMsgId === item.id ? null : item.id)} title="Réagir">😊</button>
+                                {!item.is_gif && !item.is_image && <button className="msg-action-btn" onClick={() => handleCopyMessage(item.content)} title="Copier">📋</button>}
                                 {!isMe && <button className="msg-action-btn" onClick={() => { if(window.confirm(t('reportConfirm'))) handleReport(item.id); }} title={t('reportMsg')}>🚩</button>}
                                 {isAdmin && <button className="msg-action-btn" onClick={() => handlePin(item)} title={pinnedMsg?.id === item.id ? t('unpinMsg') : t('pinMsg')}>{pinnedMsg?.id === item.id ? '📌' : '📍'}</button>}
                                 {isAdmin && <button className="msg-action-btn msg-action-delete" onClick={() => handleDelete(item.id)} title={t('chatDelete')}>🗑</button>}
@@ -617,7 +717,7 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
                             ) : item.is_gif
                               ? <img src={item.content} alt="GIF" className="msg-gif" />
                               : item.is_image
-                              ? <img src={item.content} alt="image" className="msg-img" onClick={() => window.open(item.content, '_blank')} />
+                              ? <img src={item.content} alt="image" className="msg-img" onClick={() => setLightboxUrl(item.content)} />
                               : <>{!isEmojiOnly && URL_REGEX.test(item.content) && (
                                   <LinkPreview url={item.content.match(URL_REGEX)?.[0]} />
                                 )}
@@ -626,7 +726,7 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
                             }
                           </div>
 
-                          {/* Emoji picker */}
+                        {/* Emoji picker */}
                           {pickerMsgId === item.id && (
                             <div
                               ref={pickerRef}
@@ -693,6 +793,25 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
                         )}
 
                       </div>{/* fin msg-col */}
+
+                      {/* Readers slot — toujours à droite, seulement sur le dernier msg du groupe */}
+                      {item.showAvatar && (() => {
+                        const readers = Object.entries(memberReadPositions)
+                          .filter(([, msgId]) => msgId === item.id)
+                          .map(([uid]) => findUserById(uid))
+                          .filter(Boolean);
+                        if (readers.length === 0) return null;
+                        return (
+                          <div className="msg-readers-slot">
+                            {readers.map(u => (
+                              <div key={u.id} className="reader-avatar" title={`Lu par ${u.username}`}>
+                                <Avatar user={u} size={16} />
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+
                     </div>{/* fin msg-row */}
                   </div>
                   </React.Fragment>
@@ -790,6 +909,17 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
           <div className="chat-empty">{t('chatNoRooms')}</div>
         )}
       </div>
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div className="lightbox-overlay" onClick={() => setLightboxUrl(null)}>
+          <button className="lightbox-close" onClick={() => setLightboxUrl(null)}>✕</button>
+          <img src={lightboxUrl} alt="Aperçu" className="lightbox-img" onClick={e => e.stopPropagation()} />
+          <a href={lightboxUrl} target="_blank" rel="noopener noreferrer" className="lightbox-open" onClick={e => e.stopPropagation()}>↗ Ouvrir</a>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toastMsg && <div className="chat-toast">{toastMsg}</div>}
     </div>
   );
 }

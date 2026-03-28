@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { adminApi, groupsApi, olympicApi } from '../lib/api';
+import { adminApi, groupsApi, olympicApi, mutesApi } from '../lib/api';
 import { useLang } from '../hooks/useLanguage';
 import { getCountryNameLang } from '../data/i18n';
 import { LA28_DISCIPLINES } from '../data/disciplines';
@@ -54,6 +54,10 @@ export default function AdminPage({ onSettingsChange }) {
   const [newGroupName, setNewGroupName] = useState('');
   const [settings, setSettings]     = useState({ inactivity_enabled: true, inactivity_timeout: 30, inactivity_warning: 2 });
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [mutes, setMutes]               = useState([]);
+  const [muteTarget, setMuteTarget]     = useState(null); // user à muter
+  const [muteDuration, setMuteDuration] = useState('60'); // minutes
+  const [muteReason, setMuteReason]     = useState('');
 
   // Rôle de l'utilisateur courant depuis le JWT (injecté via useAuth → App)
 
@@ -97,6 +101,9 @@ export default function AdminPage({ onSettingsChange }) {
     olympicApi.getCountries()
       .then(ctries => setCountries(ctries))
       .catch(() => {});
+    if (isAdmin) {
+      mutesApi.getAll().then(data => setMutes(data || [])).catch(() => {});
+    }
   }, []);
 
   // ── Podiums ─────────────────────────────────────────────────────────────────
@@ -244,6 +251,37 @@ export default function AdminPage({ onSettingsChange }) {
     if (level === 3) return 'role-badge captain';
     return 'role-badge player';
   };
+  const handleMuteUser = async () => {
+    if (!muteTarget) return;
+    try {
+      const expires_at = muteDuration === '0'
+        ? null
+        : new Date(Date.now() + parseInt(muteDuration) * 60 * 1000).toISOString();
+      const data = await mutesApi.mute(muteTarget.id, muteReason || null, expires_at);
+      setMutes(prev => [...prev, data]);
+      notify(`${muteTarget.username} muté${muteDuration === '0' ? ' (permanent)' : ` pour ${muteDuration} min`}`);
+      setMuteTarget(null);
+      setMuteReason('');
+      setMuteDuration('60');
+    } catch (e) { notify(e.message, 'error'); }
+  };
+
+  const handleUnmute = async (muteId, username) => {
+    try {
+      await mutesApi.unmute(muteId);
+      setMutes(prev => prev.filter(m => m.id !== muteId));
+      notify(`${username || 'Utilisateur'} démuté`);
+    } catch (e) { notify(e.message, 'error'); }
+  };
+
+  const isMuted = (userId) => mutes.some(m =>
+    m.user_id === userId &&
+    (!m.expires_at || new Date(m.expires_at) > new Date())
+  );
+
+  // Nettoyer les mutes expirés du state local
+  const activeMutes = mutes.filter(m => !m.expires_at || new Date(m.expires_at) > new Date());
+
   const canManageUser = (targetUser) => {
     const targetLevel = targetUser.roles?.level ?? 99;
     return targetLevel > myLevel && targetUser.id !== undefined;
@@ -258,8 +296,36 @@ export default function AdminPage({ onSettingsChange }) {
 
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>{t('adminLoading')}</p></div>;
 
+  const MuteModal = () => !muteTarget ? null : (
+    <div className="modal-overlay" onClick={() => setMuteTarget(null)}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <h3>🔇 Muter {muteTarget.username}</h3>
+        <div className="modal-field">
+          <label>Durée</label>
+          <select value={muteDuration} onChange={e => setMuteDuration(e.target.value)} className="role-select">
+            <option value="15">15 minutes</option>
+            <option value="60">1 heure</option>
+            <option value="360">6 heures</option>
+            <option value="1440">24 heures</option>
+            <option value="10080">7 jours</option>
+            <option value="0">Permanent</option>
+          </select>
+        </div>
+        <div className="modal-field">
+          <label>Raison (optionnel)</label>
+          <input className="search-input" value={muteReason} onChange={e => setMuteReason(e.target.value)} placeholder="Ex: spam, langage inapproprié..." />
+        </div>
+        <div className="modal-actions">
+          <button className="btn-cancel" onClick={() => setMuteTarget(null)}>Annuler</button>
+          <button className="btn-mute-confirm" onClick={handleMuteUser}>🔇 Confirmer</button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="admin-page">
+      <MuteModal />
       {notification && <div className={`notification notification-${notification.type}`}>{notification.msg}</div>}
 
       {/* Mot de passe temporaire */}
@@ -375,6 +441,23 @@ export default function AdminPage({ onSettingsChange }) {
       {/* ── Onglet Joueurs ── */}
       {tab === 'users' && (
         <div className="admin-users">
+          {activeMutes.length > 0 && (
+            <div className="mutes-section">
+              <h4 className="mutes-title">🔇 Mutes actifs ({activeMutes.length})</h4>
+              <div className="mutes-list">
+                {activeMutes.map(m => (
+                  <div key={m.id} className="mute-row">
+                    <span className="mute-username">{m.users?.username || m.user_id}</span>
+                    {m.reason && <span className="mute-reason">— {m.reason}</span>}
+                    <span className="mute-expires">
+                      {m.expires_at ? `jusqu'au ${new Date(m.expires_at).toLocaleString()}` : 'Permanent'}
+                    </span>
+                    <button className="btn-unmute" onClick={() => handleUnmute(m.id, m.users?.username)}>🔊 Démuter</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="users-table">
             <div className="users-header">
               <span>{t('adminUsersHeader')}</span>
@@ -391,6 +474,7 @@ export default function AdminPage({ onSettingsChange }) {
                     {u.username}
                     {targetLevel <= 3 && <span className={getRoleBadgeClass(targetLevel)}>{getRoleName(u)}</span>}
                     {u.must_change_password && <span className="temp-badge">{t('adminTempBadge')}</span>}
+                    {isMuted(u.id) && <span className="muted-badge">🔇 Muté</span>}
                   </span>
                   <span className="user-date">{new Date(u.created_at).toLocaleDateString(lang)}</span>
                   <span className="user-role">{getRoleName(u)}</span>
@@ -409,6 +493,14 @@ export default function AdminPage({ onSettingsChange }) {
                             <option key={r.id} value={r.id}>{t(`role_${r.name}`) || r.name}</option>
                           ))}
                         </select>
+                        <button
+                          className={`btn-mute-user${isMuted(u.id) ? ' muted' : ''}`}
+                          onClick={() => isMuted(u.id)
+                            ? handleUnmute(mutes.find(m => m.user_id === u.id)?.id, u.username)
+                            : setMuteTarget(u)
+                          }
+                          title={isMuted(u.id) ? 'Démuter' : 'Muter'}
+                        >{isMuted(u.id) ? '🔊' : '🔇'}</button>
                         <button className="btn-delete-user" onClick={() => handleDeleteUser(u.id, u.username)} title="Supprimer">🗑</button>
                       </>
                     )}
