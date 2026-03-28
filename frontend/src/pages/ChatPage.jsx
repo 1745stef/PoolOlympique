@@ -157,6 +157,7 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
   const [lightboxUrl, setLightboxUrl]     = useState(null);
   const [toastMsg, setToastMsg]           = useState(null);
   const [memberReads, setMemberReads]     = useState({}); // { user_id: last_read ISO }
+  const [replyTo, setReplyTo]             = useState(null); // { id, content, username, is_image, is_gif }
 
   const messagesEndRef = useRef(null);
   const inputRef       = useRef(null);
@@ -407,8 +408,9 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
       if (data) {
         const flat = { ...data, ...(data.users || {}) };
         setMessages(prev => [...prev, flat]);
+        // Scroll après que l'image soit chargée — délai suffisant pour le layout
+        // onLoad de l'image déclenchera le scroll final via l'attribut
       }
-      setTimeout(() => scrollToBottom('smooth'), 50);
     } catch (err) {
       showToast('🔇 ' + (err.message || 'Erreur upload'));
     }
@@ -527,9 +529,15 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
     const content = input.trim();
     if (!content || sending || !activeRoom) return;
     const wasAdmin = adminMode;
-    setInput(''); closeMention(); setAdminMode(false); setSending(true);
+    const reply = replyTo;
+    setInput(''); closeMention(); setAdminMode(false); setReplyTo(null); setSending(true);
     try {
-      await chatApi.sendMessage(activeRoom.id, content, wasAdmin);
+      await chatApi.sendMessage(
+        activeRoom.id, content, wasAdmin, false,
+        reply?.id || null,
+        reply?.is_image ? '📷 Image' : reply?.is_gif ? '🎞 GIF' : reply?.content || null,
+        reply?.username || null
+      );
       setTimeout(() => scrollToBottom('smooth'), 50);
     }
     catch (err) {
@@ -558,11 +566,12 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
   };
 
   const handleRoomClick = (room) => {
-    if (room.id === activeRoom?.id) return; // déjà sur ce salon
+    if (room.id === activeRoom?.id) return;
     setActiveRoom(room);
     setPickerMsgId(null);
-    setFirstUnreadId(null); // reset séparateur proprement
-    isAtBottomRef.current = true; // présumer en bas jusqu'au chargement
+    setReplyTo(null);
+    setFirstUnreadId(null);
+    isAtBottomRef.current = true;
   };
 
   // Calculer la position de lecture de chaque membre (user_id → message_id le plus récent lu)
@@ -685,10 +694,17 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
 
                         {/* Bulle avec hover actions */}
                         <div className="msg-bubble-wrap">
+                          {item.reply_to_id && (
+                            <div className="reply-preview" onClick={() => scrollToMsg(item.reply_to_id)}>
+                              <span className="reply-author">↩ {item.reply_to_username}</span>
+                              <span className="reply-content">{item.reply_to_content}</span>
+                            </div>
+                          )}
                           <div className={`msg-bubble${item.is_gif || item.is_image ? ' gif-bubble' : ''}`}>
                             {editingMsgId !== item.id && (
                               <div className={`msg-hover-actions ${isMe ? 'actions-left' : 'actions-right'}`}>
                                 {isMe && !item.is_gif && <button className="msg-action-btn" onClick={() => startEdit(item)} title="Modifier">✏️</button>}
+                                <button className="msg-action-btn" onClick={() => { setReplyTo(item); inputRef.current?.focus(); }} title="Répondre">↩️</button>
                                 <button className="msg-action-btn" onClick={() => setPickerMsgId(pickerMsgId === item.id ? null : item.id)} title="Réagir">😊</button>
                                 {!item.is_gif && !item.is_image && <button className="msg-action-btn" onClick={() => handleCopyMessage(item.content)} title="Copier">📋</button>}
                                 {!isMe && <button className="msg-action-btn" onClick={() => { if(window.confirm(t('reportConfirm'))) handleReport(item.id); }} title={t('reportMsg')}>🚩</button>}
@@ -717,7 +733,7 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
                             ) : item.is_gif
                               ? <img src={item.content} alt="GIF" className="msg-gif" />
                               : item.is_image
-                              ? <img src={item.content} alt="image" className="msg-img" onClick={() => setLightboxUrl(item.content)} />
+                              ? <img src={item.content} alt="image" className="msg-img" onClick={() => setLightboxUrl(item.content)} onLoad={() => { if (isAtBottomRef.current) scrollToBottom('instant'); }} />
                               : <>{!isEmojiOnly && URL_REGEX.test(item.content) && (
                                   <LinkPreview url={item.content.match(URL_REGEX)?.[0]} />
                                 )}
@@ -876,6 +892,13 @@ export default function ChatPage({ unread, setUnread, activeRoomIdRef, onInit })
                     maxFrequentRows={2}
                     perLine={8}
                   />
+                </div>
+              )}
+              {replyTo && (
+                <div className="reply-bar">
+                  <span className="reply-bar-label">↩ {replyTo.username}</span>
+                  <span className="reply-bar-content">{replyTo.is_image ? '📷 Image' : replyTo.is_gif ? '🎞 GIF' : replyTo.content?.slice(0, 80)}</span>
+                  <button className="reply-bar-close" onClick={() => setReplyTo(null)}>✕</button>
                 </div>
               )}
               <div className="chat-input-row">
