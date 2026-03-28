@@ -525,6 +525,8 @@ app.post('/groups', requireLevel(3), async (req, res) => {
   if (!name) return res.status(400).json({ error: 'Nom requis' });
   const { data, error } = await supabase.from('groups').insert({ name, created_by: req.user.id }).select().single();
   if (error) return res.status(500).json({ error: error?.message || String(error) });
+  // Sync table channels
+  await supabase.from('channels').upsert({ id: `group_${data.id}`, name, type: 'group' }, { onConflict: 'id' });
   res.json(data);
 });
 
@@ -536,9 +538,8 @@ app.delete('/groups/:id', requireLevel(3), async (req, res) => {
     const isMember = (grp?.group_members || []).some(m => m.user_id === req.user.id);
     if (!grp || (grp.created_by !== req.user.id && !isMember)) return res.status(403).json({ error: 'Vous ne pouvez supprimer que vos propres groupes' });
   }
-  // Supprimer les messages + réactions du salon du groupe (réactions en cascade via FK)
-  await supabase.from('messages').delete().eq('room_id', `group_${req.params.id}`);
-
+  // Supprimer le channel — messages supprimés en cascade via FK channels → messages
+  await supabase.from('channels').delete().eq('id', `group_${req.params.id}`);
   const { error } = await supabase.from('groups').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: error?.message || String(error) });
   res.json({ success: true });
@@ -574,6 +575,31 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`🏅 API démarrée sur http://localhost:${PORT}`));
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
+
+// GET /chat/:room_id/members — membres du salon (accessible à tous les utilisateurs connectés)
+app.get('/chat/:room_id/members', authMiddleware, async (req, res) => {
+  const room_id = req.params.room_id;
+  let userIds = [];
+
+  if (room_id === 'general') {
+    // Général — tous les utilisateurs
+    const { data } = await supabase.from('users')
+      .select('id, username, avatar_url, avatar_type, avatar_color, avatar_text_color');
+    return res.json(data || []);
+  }
+
+  if (room_id.startsWith('group_')) {
+    const groupId = room_id.replace('group_', '');
+    const { data: members } = await supabase.from('group_members')
+      .select('user_id, users(id, username, avatar_url, avatar_type, avatar_color, avatar_text_color)')
+      .eq('group_id', groupId);
+    const users = (members || []).map(m => m.users).filter(Boolean);
+    return res.json(users);
+  }
+
+  res.json([]);
+});
+
 // GET /chat/rooms — salons accessibles par l'utilisateur
 app.get('/chat/rooms', authMiddleware, async (req, res) => {
   const level = req.user.role_level ?? ROLE_PLAYER;
@@ -596,8 +622,8 @@ app.get('/chat/rooms', authMiddleware, async (req, res) => {
 });
 
 // POST /chat/:room_id/messages — envoyer un message
-app.post('/chat/:room_id/messages', authMiddleware, async (req, res) => {
-  const { content, is_admin_msg, is_gif } = req.body;
+app.post('/chat/:room_id/messages', authMiddleware, checkMuted, async (req, res) => {
+  const { content, is_admin_msg, is_gif, reply_to_id, reply_to_content, reply_to_username } = req.body;
   if (!content || !content.trim()) return res.status(400).json({ error: 'Message vide' });
   if (content.length > 1000) return res.status(400).json({ error: 'Message trop long (max 1000 car.)' });
 
@@ -636,6 +662,9 @@ app.post('/chat/:room_id/messages', authMiddleware, async (req, res) => {
     avatar_type:        profile?.avatar_type || 'letter',
     avatar_color:       profile?.avatar_color || '#000000',
     avatar_text_color:  profile?.avatar_text_color || '#FFFFFF',
+    reply_to_id:        reply_to_id || null,
+    reply_to_content:   reply_to_content || null,
+    reply_to_username:  reply_to_username || null,
   }).select().single();
 
   if (error) return res.status(500).json({ error: error.message });
@@ -674,7 +703,7 @@ const linkPreviewCache = new Map();
 
 
 // POST /chat/:room_id/upload — upload image vers Cloudinary
-app.post('/chat/:room_id/upload', authMiddleware, upload.single('image'), async (req, res) => {
+app.post('/chat/:room_id/upload', authMiddleware, checkMuted, upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Aucun fichier reçu' });
   try {
     // Upload vers Cloudinary via stream
@@ -711,6 +740,90 @@ app.post('/chat/:room_id/upload', authMiddleware, upload.single('image'), async 
     res.status(500).json({ error: err.message });
   }
 });
+
+
+// ─── Room Reads ────────────────────────────────────────────────────────────────
+
+// GET /chat/room-reads — récupérer les last_read de l'utilisateur
+app.get('/chat/room-reads', authMiddleware, async (req, res) => {
+  const { data, error } = await supabase.from('room_reads')
+    .select('room_id, last_read')
+    .eq('user_id', req.user.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+// POST /chat/room-reads/:room_id — mettre à jour le last_read
+app.post('/chat/room-reads/:room_id', authMiddleware, async (req, res) => {
+  const { error } = await supabase.from('room_reads').upsert({
+    user_id:   req.user.id,
+    room_id:   req.params.room_id,
+    last_read: new Date().toISOString(),
+  }, { onConflict: 'user_id,room_id' });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// ─── Mutes ─────────────────────────────────────────────────────────────────────
+
+// GET /chat/mutes — liste des mutes actifs (admin)
+app.get('/chat/mutes', requireLevel(2), async (req, res) => {
+  const { data, error } = await supabase.from('mutes')
+    .select('*, users!user_id(username), muter:users!muted_by(username)')
+    .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
+    .order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+// POST /chat/mutes — muter un utilisateur
+app.post('/chat/mutes', requireLevel(2), async (req, res) => {
+  const { user_id, reason, expires_at } = req.body;
+  if (!user_id) return res.status(400).json({ error: 'user_id requis' });
+
+  // Vérifier hiérarchie — on ne peut muter que des niveaux inférieurs
+  const { data: target } = await supabase.from('users')
+    .select('roles(level)').eq('id', user_id).single();
+  const targetLevel = target?.roles?.level ?? 99;
+  const adminLevel  = req.user.role_level ?? 99;
+  if (adminLevel >= targetLevel) return res.status(403).json({ error: 'Vous ne pouvez pas muter un utilisateur de niveau supérieur ou égal' });
+
+  const { data: inserted, error } = await supabase.from('mutes').insert({
+    user_id, muted_by: req.user.id, reason, expires_at: expires_at || null,
+  }).select('id').single();
+  if (error) return res.status(500).json({ error: error.message });
+  // Recharger avec le join users pour que le frontend ait le username
+  const { data } = await supabase.from('mutes')
+    .select('*, users!user_id(username), muter:users!muted_by(username)')
+    .eq('id', inserted.id).single();
+  res.json(data);
+});
+
+// DELETE /chat/mutes/:id — retirer un mute
+app.delete('/chat/mutes/:id', requireLevel(2), async (req, res) => {
+  const { error } = await supabase.from('mutes').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// Middleware — vérifier si l'utilisateur est muté (utilisé dans sendMessage)
+async function checkMuted(req, res, next) {
+  const now = new Date().toISOString();
+  // Nettoyer les mutes expirés au passage
+  await supabase.from('mutes')
+    .delete()
+    .eq('user_id', req.user.id)
+    .not('expires_at', 'is', null)
+    .lt('expires_at', now);
+  // Vérifier s'il reste un mute actif
+  const { data } = await supabase.from('mutes')
+    .select('id, expires_at, reason')
+    .eq('user_id', req.user.id)
+    .or('expires_at.is.null,expires_at.gt.' + now)
+    .limit(1).maybeSingle();
+  if (data) return res.status(403).json({ error: `Vous êtes muté${data.reason ? ` : ${data.reason}` : ''}`, muted: true });
+  next();
+}
 // GET /chat/link-preview?url=... — aperçu Open Graph d'un lien
 app.get('/chat/link-preview', authMiddleware, async (req, res) => {
   const { url } = req.query;

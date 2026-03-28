@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { LanguageProvider, useLang } from './hooks/useLanguage';
 import { useInactivityTimer } from './hooks/useInactivityTimer';
@@ -12,7 +12,8 @@ import UserMenu from './components/UserMenu';
 import MedalsPage from './pages/MedalsPage';
 import ChatPage from './pages/ChatPage';
 import InactivityWarning from './components/InactivityWarning';
-import { settingsApi, authApi } from './lib/api';
+import { settingsApi, authApi, chatApi, roomReadsApi } from './lib/api';
+import { supabase } from './lib/supabase';
 import './styles.css';
 
 function getMyLevel(user) {
@@ -29,9 +30,56 @@ function AppContent() {
   const { user, loading, logout } = useAuth();
   const { t } = useLang();
   const [tab, setTab] = useState('picks');
-  const [totalUnread, setTotalUnread] = useState(0);
+  const tabRef = useRef('picks'); // ref pour éviter closure stale dans Realtime
+  const [unread, setUnread]       = useState({});
+  const activeRoomIdRef           = useRef(null);
+  const totalUnread = Object.values(unread).reduce((a, b) => a + b, 0);
+  // Sync tabRef pour le channel Realtime (évite closure stale)
+  useEffect(() => { tabRef.current = tab; }, [tab]);
   const [showWarning, setShowWarning] = useState(false);
   const [settings, setSettings] = useState({ inactivity_enabled: false, inactivity_timeout: 30, inactivity_warning: 2 });
+
+
+
+  // Calcul initial des badges depuis room_reads DB
+  const initUnreadBadges = useCallback(async (rooms) => {
+    if (!rooms?.length || !user?.id) return;
+    // Récupérer les last_read depuis DB
+    const reads = await roomReadsApi.getAll().catch(() => []);
+    const readMap = Object.fromEntries((reads || []).map(r => [r.room_id, r.last_read]));
+    const counts = {};
+    await Promise.all(rooms.map(async (room) => {
+      const lastRead = readMap[room.id];
+      if (!lastRead) { counts[room.id] = 0; return; }
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('room_id', room.id)
+        .is('deleted_at', null)
+        .neq('user_id', user.id)
+        .gt('created_at', lastRead);
+      counts[room.id] = count || 0;
+    }));
+    setUnread(counts);
+  }, [user?.id]);
+
+  // Channel Realtime global dans App — survit aux changements d'onglet
+  useEffect(() => {
+    if (!user?.id) return;
+    const globalChannel = supabase.channel('app:unread')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const m = payload.new;
+          if (!m || m.deleted_at) return;
+          if (m.user_id === user.id) return;
+          const currentRoomId = activeRoomIdRef.current;
+          if (m.room_id !== currentRoomId || tabRef.current !== 'chat') {
+            setUnread(prev => ({ ...prev, [m.room_id]: (prev[m.room_id] || 0) + 1 }));
+          }
+        })
+      .subscribe();
+    return () => supabase.removeChannel(globalChannel);
+  }, [user?.id]);
 
   // Charger les settings au démarrage
   useEffect(() => {
@@ -99,9 +147,9 @@ function AppContent() {
         <button className={tab === 'results' ? 'active' : ''} onClick={() => setTab('results')}>{t('navResults')}</button>
         <button className={tab === 'leaderboard' ? 'active' : ''} onClick={() => setTab('leaderboard')}>{t('navLeaderboard')}</button>
         <button className={tab === 'medals' ? 'active' : ''} onClick={() => setTab('medals')}>{t('navMedals')}</button>
-        <button className={tab === 'chat' ? 'active' : ''} onClick={() => { setTab('chat'); setTotalUnread(0); }}>
+        <button className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>
           {t('navChat')}
-          {tab !== 'chat' && totalUnread > 0 && <span className="nav-unread-badge">{totalUnread > 99 ? '99+' : totalUnread}</span>}
+          {totalUnread > 0 && <span className="nav-unread-badge">{totalUnread > 99 ? '99+' : totalUnread}</span>}
         </button>
         {getMyLevel(user) <= 3 && (
           <button className={`${tab === 'admin' ? 'active' : ''} admin-tab`} onClick={() => setTab('admin')}>{t('navAdmin')}</button>
@@ -114,7 +162,7 @@ function AppContent() {
         {tab === 'results'     && <MyResultsPage />}
         {tab === 'leaderboard' && <LeaderboardPage />}
         {tab === 'medals'      && <MedalsPage />}
-        {tab === 'chat'        && <ChatPage onUnreadChange={setTotalUnread} />}
+        {tab === 'chat' && <ChatPage unread={unread} setUnread={setUnread} activeRoomIdRef={activeRoomIdRef} onInit={initUnreadBadges} />}
         {tab === 'admin'       && getMyLevel(user) <= 3 && <AdminPage onSettingsChange={setSettings} />}
       </main>
     </div>
