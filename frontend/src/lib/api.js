@@ -123,3 +123,39 @@ export const mutesApi = {
   mute:    (user_id, reason, expires_at)   => apiFetch('/chat/mutes', { method: 'POST', body: JSON.stringify({ user_id, reason, expires_at }) }),
   unmute:  (id)                            => apiFetch(`/chat/mutes/${id}`, { method: 'DELETE' }),
 };
+
+// ─── Famille v7.1 ─────────────────────────────────────────────────────────────
+export const familyApi = {
+  // Membres
+  getMembers:    ()           => apiFetch('/family/members'),
+  createMember:  (data)       => apiFetch('/family/members', { method: 'POST', body: JSON.stringify(data) }),
+  updateMember:  (id, data)   => apiFetch(`/family/members/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteMember:  (id)         => apiFetch(`/family/members/${id}`, { method: 'DELETE' }),
+  linkMe:        (id)         => apiFetch(`/family/members/${id}/link-me`, { method: 'POST' }),
+  unlinkMe:      (id)         => apiFetch(`/family/members/${id}/link-me`, { method: 'DELETE' }),
+
+  // Listes épicerie
+  getLists:      (archived = false) => apiFetch(`/family/grocery/lists?archived=${archived}`),
+  createList:    (data)       => apiFetch('/family/grocery/lists', { method: 'POST', body: JSON.stringify(data) }),
+  updateList:    (id, data)   => apiFetch(`/family/grocery/lists/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteList:    (id)         => apiFetch(`/family/grocery/lists/${id}`, { method: 'DELETE' }),
+
+  // Items épicerie
+  getItems:      (listId)     => apiFetch(`/family/grocery/lists/${listId}/items`),
+  createItem:    (listId, data) => apiFetch(`/family/grocery/lists/${listId}/items`, { method: 'POST', body: JSON.stringify(data) }),
+  updateItem:    (id, data)   => apiFetch(`/family/grocery/items/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  checkItem:     (id)         => apiFetch(`/family/grocery/items/${id}/check`, { method: 'POST' }),
+  deleteItem:    (id)         => apiFetch(`/family/grocery/items/${id}`, { method: 'DELETE' }),
+
+  // Notes
+  getNotes:      (archived = false) => apiFetch(`/family/notes?archived=${archived}`),
+  createNote:    (data)       => apiFetch('/family/notes', { method: 'POST', body: JSON.stringify(data) }),
+  updateNote:    (id, data)   => apiFetch(`/family/notes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteNote:    (id)         => apiFetch(`/family/notes/${id}`, { method: 'DELETE' }),
+
+  // Agenda
+  getEvents:     (month)      => apiFetch(`/family/events${month ? `?month=${month}` : ''}`),
+  createEvent:   (data)       => apiFetch('/family/events', { method: 'POST', body: JSON.stringify(data) }),
+  updateEvent:   (id, data)   => apiFetch(`/family/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteEvent:   (id)         => apiFetch(`/family/events/${id}`, { method: 'DELETE' }),
+};
