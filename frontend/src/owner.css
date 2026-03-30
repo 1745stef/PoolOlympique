@@ -447,8 +447,7 @@
 
 /* Mobile */
 @media (max-width: 600px) {
-  .grocery-layout { flex-direction: column; }
-  .grocery-sidebar { width: 100%; max-height: 200px; }
+  .grocery-layout { flex-direction: row; }
 }
 
 /* ─── Filtre listes ───────────────────────────────────────── */
@@ -496,3 +495,90 @@
   display: flex; align-items: center; justify-content: center;
 }
 .filter-color-btn.all.active { border-color: #2d7dd2; background: #e8f0fb; color: #2d7dd2; }
+
+/* ─── Grocery mobile hamburger ───────────────────────────── */
+.hamburger-btn {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px; height: 36px;
+  background: #ffffff;
+  border: 1px solid #d0dcea;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 8px;
+  flex-shrink: 0;
+}
+.hamburger-btn span {
+  display: block;
+  height: 2px;
+  background: #1a2333;
+  border-radius: 2px;
+  transition: all 0.2s;
+}
+
+.grocery-mobile-bar {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.grocery-mobile-title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+.grocery-no-list {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-close-btn {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: #6b7a8d;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.sidebar-close-btn:hover { background: #f0f4f8; color: #1a2333; }
+
+.grocery-sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(10,20,40,0.4);
+  z-index: 49;
+  backdrop-filter: blur(2px);
+}
+
+@media (max-width: 600px) {
+  /* Cacher la sidebar par défaut sur mobile */
+  .grocery-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: -280px;
+    width: 260px !important;
+    height: 100%;
+    z-index: 50;
+    border-radius: 0 16px 16px 0;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+    transition: left 0.25s ease;
+    overflow-y: auto;
+  }
+  .grocery-sidebar.open { left: 0; }
+
+  .grocery-sidebar-overlay { display: block; }
+
+  .hamburger-btn    { display: flex; }
+  .grocery-mobile-bar { display: flex; }
+  .sidebar-close-btn  { display: block; }
+
+  /* Enlever le flex-direction:column sur mobile pour grocery-layout */
+  .grocery-layout { flex-direction: row; }
+  .grocery-main   { padding: 14px; }
+}

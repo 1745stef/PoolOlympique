@@ -29,6 +29,7 @@ export default function GrocerySection() {
   const [editText, setEditText]       = useState('');
 
   const [error, setError]           = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sortBy, setSortBy]         = useState('oldest');   // 'newest' | 'oldest' | 'color'
   const [filterColor, setFilterColor] = useState(null);      // null = tous
   const [editingList, setEditingList]   = useState(null); // list en cours d'édition
@@ -49,6 +50,7 @@ export default function GrocerySection() {
   }, [showArchived]);
 
   const selectList = async (list) => {
+    setSidebarOpen(false);
     setActiveList(list);
     setLoadingItems(true);
     setItems([]);
@@ -189,11 +191,19 @@ export default function GrocerySection() {
 
       <div className="grocery-layout">
 
+        {/* Overlay mobile pour fermer sidebar */}
+        {sidebarOpen && (
+          <div className="grocery-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+        )}
+
         {/* ── Colonne gauche — listes ── */}
-        <div className="grocery-sidebar">
+        <div className={`grocery-sidebar${sidebarOpen ? ' open' : ''}`}>
           <div className="grocery-sidebar-header">
             <span className="section-title">📋 Listes</span>
-            <button className="owner-btn-primary sm" onClick={() => setShowListForm(v => !v)}>+</button>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className="owner-btn-primary sm" onClick={() => setShowListForm(v => !v)}>+</button>
+              <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}>✕</button>
+            </div>
           </div>
 
           {/* Filtre et tri */}
@@ -298,10 +308,24 @@ export default function GrocerySection() {
         {/* ── Colonne droite — items ── */}
         <div className="grocery-main">
           {!activeList ? (
-            <div className="owner-coming-soon">Sélectionnez ou créez une liste</div>
+            <div className="grocery-no-list">
+              <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+                <span /><span /><span />
+              </button>
+              <span className="owner-coming-soon" style={{ border: 'none', background: 'none' }}>Sélectionnez ou créez une liste</span>
+            </div>
           ) : (
             <>
               {/* Header liste active */}
+              <div className="grocery-mobile-bar">
+                <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+                  <span /><span /><span />
+                </button>
+                <span className="grocery-mobile-title"
+                  style={{ color: activeList?.color }}>
+                  {activeList?.title}
+                </span>
+              </div>
               <div className="grocery-list-header">
                 <div className="grocery-list-title-row">
                   <div className="grocery-list-dot" style={{ background: activeList.color }} />
