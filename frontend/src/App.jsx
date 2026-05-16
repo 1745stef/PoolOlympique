@@ -12,6 +12,7 @@ import UserMenu from './components/UserMenu';
 import MedalsPage from './pages/MedalsPage';
 import ChatPage from './pages/ChatPage';
 import InactivityWarning from './components/InactivityWarning';
+import OwnerPage from './pages/OwnerPage';
 import { settingsApi, authApi, chatApi, roomReadsApi } from './lib/api';
 import { supabase } from './lib/supabase';
 import './styles.css';
@@ -29,15 +30,15 @@ function getMyLevel(user) {
 function AppContent() {
   const { user, loading, logout } = useAuth();
   const { t } = useLang();
-  const [tab, setTab] = useState('picks');
-  const tabRef = useRef('picks'); // ref pour éviter closure stale dans Realtime
+  const [tab, setTab]             = useState('picks');
   const [unread, setUnread]       = useState({});
-  const activeRoomIdRef           = useRef(null);
-  const totalUnread = Object.values(unread).reduce((a, b) => a + b, 0);
-  // Sync tabRef pour le channel Realtime (évite closure stale)
-  useEffect(() => { tabRef.current = tab; }, [tab]);
   const [showWarning, setShowWarning] = useState(false);
-  const [settings, setSettings] = useState({ inactivity_enabled: false, inactivity_timeout: 30, inactivity_warning: 2 });
+  const [settings, setSettings]   = useState({ inactivity_enabled: false, inactivity_timeout: 30, inactivity_warning: 2 });
+  const tabRef          = useRef('picks'); // ref pour éviter closure stale dans Realtime
+  const activeRoomIdRef = useRef(null);
+  const totalUnread = Object.values(unread).reduce((a, b) => a + b, 0);
+  // Sync tabRef quand tab change
+  useEffect(() => { tabRef.current = tab; }, [tab]);
 
 
 
@@ -120,6 +121,11 @@ function AppContent() {
   if (!user) return <AuthPage />;
   if (user.must_change_password) return <ChangePasswordPage />;
 
+  // Page owner — fullscreen, aucun chrome
+  if (tab === 'owner' && getMyLevel(user) === 1) {
+    return <OwnerPage onExit={() => setTab('picks')} />;
+  }
+
   return (
     <div className={`app${tab === 'chat' ? ' chat-active' : ''}`}>
       {showWarning && (
@@ -134,7 +140,10 @@ function AppContent() {
         <header className="app-header">
           <div className="header-left">
             <img src="/la28-logo.png" alt="LA28" className="header-logo" />
-            <div>
+            <div
+              onDoubleClick={() => { if (getMyLevel(user) === 1) setTab('owner'); }}
+              style={{ cursor: getMyLevel(user) === 1 ? 'default' : 'default' }}
+            >
               <h1>{t('appTitle')}</h1>
               <span className="edition">{t('appEdition')}</span>
             </div>

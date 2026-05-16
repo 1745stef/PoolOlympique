@@ -951,3 +951,398 @@ app.get('/chat/messages/reactions', authMiddleware, async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   res.json(data || []);
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── ESPACE FAMILLE v7.1 — requireLevel(1) sur toutes les routes ─────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Membres ──────────────────────────────────────────────────────────────────
+
+// GET /family/members
+app.get('/family/members', requireLevel(1), async (req, res) => {
+  const { data, error } = await supabase
+    .from('family_members')
+    .select('*')
+    .eq('owner_id', req.user.id)
+    .order('sort_order', { ascending: true });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+// POST /family/members
+app.post('/family/members', requireLevel(1), async (req, res) => {
+  const { name, color, emoji, avatar_url, is_child, birthdate, sort_order } = req.body;
+  if (!name?.trim()) return res.status(400).json({ error: 'Nom requis' });
+  const { data, error } = await supabase.from('family_members').insert({
+    owner_id: req.user.id,
+    name: name.trim(), color: color || '#FF6B6B',
+    emoji: emoji || null, avatar_url: avatar_url || null,
+    is_child: !!is_child, birthdate: birthdate || null,
+    sort_order: sort_order ?? 0,
+  }).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// PUT /family/members/:id
+app.put('/family/members/:id', requireLevel(1), async (req, res) => {
+  const { name, color, emoji, avatar_url, is_child, birthdate, sort_order, is_active, user_id } = req.body;
+  const { data, error } = await supabase.from('family_members')
+    .update({
+      ...(name       !== undefined && { name: name.trim() }),
+      ...(color      !== undefined && { color }),
+      ...(emoji      !== undefined && { emoji }),
+      ...(avatar_url !== undefined && { avatar_url }),
+      ...(is_child   !== undefined && { is_child }),
+      ...(birthdate  !== undefined && { birthdate }),
+      ...(sort_order !== undefined && { sort_order }),
+      ...(is_active  !== undefined && { is_active }),
+      ...(user_id    !== undefined && { user_id: user_id || null }),
+    })
+    .eq('id', req.params.id)
+    .eq('owner_id', req.user.id)
+    .select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// DELETE /family/members/:id
+app.delete('/family/members/:id', requireLevel(1), async (req, res) => {
+  const { error } = await supabase.from('family_members')
+    .delete()
+    .eq('id', req.params.id)
+    .eq('owner_id', req.user.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+
+// POST /family/members/:id/link-me — lier son propre compte à un membre
+app.post('/family/members/:id/link-me', requireLevel(1), async (req, res) => {
+  // Vérifier qu'aucun autre membre n'est déjà lié à ce user
+  const { data: existing } = await supabase.from('family_members')
+    .select('id, name')
+    .eq('owner_id', req.user.id)
+    .eq('user_id', req.user.id)
+    .maybeSingle();
+  if (existing && existing.id !== req.params.id) {
+    return res.status(400).json({ error: `Votre compte est déjà lié à "${existing.name}"` });
+  }
+  const { data, error } = await supabase.from('family_members')
+    .update({ user_id: req.user.id })
+    .eq('id', req.params.id)
+    .eq('owner_id', req.user.id)
+    .select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// DELETE /family/members/:id/link-me — délier son compte
+app.delete('/family/members/:id/link-me', requireLevel(1), async (req, res) => {
+  const { data, error } = await supabase.from('family_members')
+    .update({ user_id: null })
+    .eq('id', req.params.id)
+    .eq('owner_id', req.user.id)
+    .select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// ─── Listes d'épicerie ────────────────────────────────────────────────────────
+
+// GET /family/grocery/lists
+app.get('/family/grocery/lists', requireLevel(1), async (req, res) => {
+  const { archived } = req.query;
+  let query = supabase.from('grocery_lists')
+    .select('*, grocery_items(id, checked)')
+    .eq('owner_id', req.user.id)
+    .order('sort_order', { ascending: true });
+  if (archived === 'true') query = query.not('archived_at', 'is', null);
+  else                     query = query.is('archived_at', null);
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+// POST /family/grocery/lists
+app.post('/family/grocery/lists', requireLevel(1), async (req, res) => {
+  const { title, color, sort_order } = req.body;
+  if (!title?.trim()) return res.status(400).json({ error: 'Titre requis' });
+  const { data, error } = await supabase.from('grocery_lists').insert({
+    owner_id: req.user.id,
+    title: title.trim(), color: color || '#4A90D9',
+    sort_order: sort_order ?? 0,
+  }).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// PUT /family/grocery/lists/:id
+app.put('/family/grocery/lists/:id', requireLevel(1), async (req, res) => {
+  const { title, color, sort_order, archived } = req.body;
+  const { data, error } = await supabase.from('grocery_lists')
+    .update({
+      ...(title      !== undefined && { title: title.trim() }),
+      ...(color      !== undefined && { color }),
+      ...(sort_order !== undefined && { sort_order }),
+      ...(archived   !== undefined && { archived_at: archived ? new Date().toISOString() : null }),
+    })
+    .eq('id', req.params.id)
+    .eq('owner_id', req.user.id)
+    .select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// DELETE /family/grocery/lists/:id
+app.delete('/family/grocery/lists/:id', requireLevel(1), async (req, res) => {
+  const { error } = await supabase.from('grocery_lists')
+    .delete()
+    .eq('id', req.params.id)
+    .eq('owner_id', req.user.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// ─── Items d'épicerie ─────────────────────────────────────────────────────────
+
+// GET /family/grocery/lists/:id/items
+app.get('/family/grocery/lists/:id/items', requireLevel(1), async (req, res) => {
+  // Vérifier ownership de la liste
+  const { data: list } = await supabase.from('grocery_lists')
+    .select('id').eq('id', req.params.id).eq('owner_id', req.user.id).single();
+  if (!list) return res.status(403).json({ error: 'Accès refusé' });
+
+  const { data, error } = await supabase.from('grocery_items')
+    .select('*')
+    .eq('list_id', req.params.id)
+    .order('position', { ascending: true });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+// POST /family/grocery/lists/:id/items
+app.post('/family/grocery/lists/:id/items', requireLevel(1), async (req, res) => {
+  const { data: list } = await supabase.from('grocery_lists')
+    .select('id').eq('id', req.params.id).eq('owner_id', req.user.id).single();
+  if (!list) return res.status(403).json({ error: 'Accès refusé' });
+
+  const { content, quantity, unit, category, member_id, position } = req.body;
+  if (!content?.trim()) return res.status(400).json({ error: 'Contenu requis' });
+
+  // Position par défaut = fin de liste
+  let pos = position;
+  if (pos === undefined) {
+    const { count } = await supabase.from('grocery_items')
+      .select('id', { count: 'exact', head: true }).eq('list_id', req.params.id);
+    pos = count || 0;
+  }
+
+  const { data, error } = await supabase.from('grocery_items').insert({
+    list_id: req.params.id,
+    content: content.trim(),
+    quantity: quantity || null, unit: unit || null,
+    category: category || null, member_id: member_id || null,
+    position: pos,
+  }).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// PUT /family/grocery/items/:id
+app.put('/family/grocery/items/:id', requireLevel(1), async (req, res) => {
+  const { content, quantity, unit, category, member_id, position } = req.body;
+  const { data, error } = await supabase.from('grocery_items')
+    .update({
+      ...(content   !== undefined && { content: content.trim() }),
+      ...(quantity  !== undefined && { quantity }),
+      ...(unit      !== undefined && { unit }),
+      ...(category  !== undefined && { category }),
+      ...(member_id !== undefined && { member_id }),
+      ...(position  !== undefined && { position }),
+    })
+    .eq('id', req.params.id)
+    .select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// POST /family/grocery/items/:id/check — toggle checked
+app.post('/family/grocery/items/:id/check', requireLevel(1), async (req, res) => {
+  const { data: item } = await supabase.from('grocery_items')
+    .select('checked').eq('id', req.params.id).single();
+  if (!item) return res.status(404).json({ error: 'Item introuvable' });
+
+  const checked = !item.checked;
+  const { data, error } = await supabase.from('grocery_items')
+    .update({ checked, checked_at: checked ? new Date().toISOString() : null })
+    .eq('id', req.params.id)
+    .select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// DELETE /family/grocery/items/:id
+app.delete('/family/grocery/items/:id', requireLevel(1), async (req, res) => {
+  const { error } = await supabase.from('grocery_items').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// ─── Notes ────────────────────────────────────────────────────────────────────
+
+// GET /family/notes
+app.get('/family/notes', requireLevel(1), async (req, res) => {
+  const { archived } = req.query;
+  let query = supabase.from('family_notes')
+    .select('*, family_members(id, name, color, emoji)')
+    .eq('owner_id', req.user.id)
+    .order('pinned', { ascending: false })
+    .order('updated_at', { ascending: false });
+  if (archived === 'true') query = query.not('archived_at', 'is', null);
+  else                     query = query.is('archived_at', null);
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+// POST /family/notes
+app.post('/family/notes', requireLevel(1), async (req, res) => {
+  const { title, content, member_id, color, tags } = req.body;
+  if (!title?.trim()) return res.status(400).json({ error: 'Titre requis' });
+  const { data, error } = await supabase.from('family_notes').insert({
+    owner_id: req.user.id,
+    title: title.trim(), content: content || null,
+    member_id: member_id || null, color: color || null,
+    tags: tags || [],
+  }).select('*, family_members(id, name, color, emoji)').single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// PUT /family/notes/:id
+app.put('/family/notes/:id', requireLevel(1), async (req, res) => {
+  const { title, content, member_id, color, tags, pinned, archived } = req.body;
+  const { data, error } = await supabase.from('family_notes')
+    .update({
+      ...(title     !== undefined && { title: title.trim() }),
+      ...(content   !== undefined && { content }),
+      ...(member_id !== undefined && { member_id }),
+      ...(color     !== undefined && { color }),
+      ...(tags      !== undefined && { tags }),
+      ...(pinned    !== undefined && { pinned }),
+      ...(archived  !== undefined && { archived_at: archived ? new Date().toISOString() : null }),
+    })
+    .eq('id', req.params.id)
+    .eq('owner_id', req.user.id)
+    .select('*, family_members(id, name, color, emoji)').single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+// DELETE /family/notes/:id
+app.delete('/family/notes/:id', requireLevel(1), async (req, res) => {
+  const { error } = await supabase.from('family_notes')
+    .delete().eq('id', req.params.id).eq('owner_id', req.user.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// ─── Agenda ───────────────────────────────────────────────────────────────────
+
+// GET /family/events?month=2025-07
+app.get('/family/events', requireLevel(1), async (req, res) => {
+  const { month } = req.query; // format YYYY-MM
+  let query = supabase.from('family_events')
+    .select('*, family_event_members(member_id, family_members(id, name, color, emoji))')
+    .eq('owner_id', req.user.id)
+    .order('date', { ascending: true })
+    .order('time_start', { ascending: true, nullsFirst: true });
+  if (month) {
+    const start = `${month}-01`;
+    const end   = new Date(new Date(start).getFullYear(), new Date(start).getMonth() + 1, 0)
+                    .toISOString().split('T')[0];
+    query = query.gte('date', start).lte('date', end);
+  }
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+// POST /family/events
+app.post('/family/events', requireLevel(1), async (req, res) => {
+  const { title, date, time_start, time_end, all_day, location, color,
+          recurrence, recurrence_end, reminder_min, notes, member_ids } = req.body;
+  if (!title?.trim()) return res.status(400).json({ error: 'Titre requis' });
+  if (!date)          return res.status(400).json({ error: 'Date requise' });
+
+  const { data: event, error } = await supabase.from('family_events').insert({
+    owner_id: req.user.id,
+    title: title.trim(), date,
+    time_start: time_start || null, time_end: time_end || null,
+    all_day: !!all_day, location: location || null, color: color || null,
+    recurrence: recurrence || 'once', recurrence_end: recurrence_end || null,
+    reminder_min: reminder_min || null, notes: notes || null,
+  }).select().single();
+  if (error) return res.status(500).json({ error: error.message });
+
+  // Associer les membres
+  if (member_ids?.length) {
+    await supabase.from('family_event_members').insert(
+      member_ids.map(mid => ({ event_id: event.id, member_id: mid }))
+    );
+  }
+
+  // Retourner l'événement avec membres
+  const { data: full } = await supabase.from('family_events')
+    .select('*, family_event_members(member_id, family_members(id, name, color, emoji))')
+    .eq('id', event.id).single();
+  res.json(full);
+});
+
+// PUT /family/events/:id
+app.put('/family/events/:id', requireLevel(1), async (req, res) => {
+  const { title, date, time_start, time_end, all_day, location, color,
+          recurrence, recurrence_end, reminder_min, notes, member_ids } = req.body;
+
+  const { error } = await supabase.from('family_events')
+    .update({
+      ...(title         !== undefined && { title: title.trim() }),
+      ...(date          !== undefined && { date }),
+      ...(time_start    !== undefined && { time_start }),
+      ...(time_end      !== undefined && { time_end }),
+      ...(all_day       !== undefined && { all_day }),
+      ...(location      !== undefined && { location }),
+      ...(color         !== undefined && { color }),
+      ...(recurrence    !== undefined && { recurrence }),
+      ...(recurrence_end!== undefined && { recurrence_end }),
+      ...(reminder_min  !== undefined && { reminder_min }),
+      ...(notes         !== undefined && { notes }),
+    })
+    .eq('id', req.params.id)
+    .eq('owner_id', req.user.id);
+  if (error) return res.status(500).json({ error: error.message });
+
+  // Resync membres si fournis
+  if (member_ids !== undefined) {
+    await supabase.from('family_event_members').delete().eq('event_id', req.params.id);
+    if (member_ids.length) {
+      await supabase.from('family_event_members').insert(
+        member_ids.map(mid => ({ event_id: req.params.id, member_id: mid }))
+      );
+    }
+  }
+
+  const { data: full } = await supabase.from('family_events')
+    .select('*, family_event_members(member_id, family_members(id, name, color, emoji))')
+    .eq('id', req.params.id).single();
+  res.json(full);
+});
+
+// DELETE /family/events/:id
+app.delete('/family/events/:id', requireLevel(1), async (req, res) => {
+  const { error } = await supabase.from('family_events')
+    .delete().eq('id', req.params.id).eq('owner_id', req.user.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
