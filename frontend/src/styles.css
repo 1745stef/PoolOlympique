@@ -2033,3 +2033,20 @@ div:hover > .avatar-crop-hover {
   color: var(--muted);
   font-size: 1rem;
 }
+
+/* Bouton Espace Famille (visible seulement pour certains usagers) */
+.owner-home-btn {
+  text-decoration: none;
+  display: inline-block;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.35);
+  color: inherit;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.owner-home-btn:hover { background: rgba(255,255,255,0.28); }
+@media (max-width: 600px) { .owner-home-btn { padding: 6px 10px; font-size: 0.75rem; } }
