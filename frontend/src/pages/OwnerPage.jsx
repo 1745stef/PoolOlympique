@@ -2,6 +2,7 @@ import { useState } from 'react';
 import '../owner.css';
 import MembersSection from '../owner/MembersSection';
 import GrocerySection from '../owner/GrocerySection';
+import NotesSection from '../owner/NotesSection';
 
 const NAV_ITEMS = [
   { id: 'members', label: 'Membres',  icon: '👨‍👩‍👧‍👦' },
@@ -43,7 +44,7 @@ export default function OwnerPage({ onExit }) {
       <div className="owner-main">
         {section === 'members' && <MembersSection />}
         {section === 'grocery' && <GrocerySection />}
-        {section === 'notes'   && <div className="owner-coming-soon">📝 Notes — bientôt</div>}
+        {section === 'notes'   && <NotesSection />}
         {section === 'agenda'  && <div className="owner-coming-soon">📅 Agenda — bientôt</div>}
       </div>
 

@@ -13,7 +13,8 @@ import MedalsPage from './pages/MedalsPage';
 import ChatPage from './pages/ChatPage';
 import InactivityWarning from './components/InactivityWarning';
 import OwnerPage from './pages/OwnerPage';
-import { settingsApi, authApi, chatApi, roomReadsApi } from './lib/api';
+import BingoPage from './pages/BingoPage';
+import { settingsApi, authApi, chatApi, roomReadsApi, bingoApi } from './lib/api';
 import { supabase } from './lib/supabase';
 import './styles.css';
 
@@ -34,11 +35,20 @@ function AppContent() {
   const [unread, setUnread]       = useState({});
   const [showWarning, setShowWarning] = useState(false);
   const [settings, setSettings]   = useState({ inactivity_enabled: false, inactivity_timeout: 30, inactivity_warning: 2 });
+  const [bingo, setBingo]         = useState(null); // { role: 'admin'|'player', label } si l'usager a accès
   const tabRef          = useRef('picks'); // ref pour éviter closure stale dans Realtime
   const activeRoomIdRef = useRef(null);
   const totalUnread = Object.values(unread).reduce((a, b) => a + b, 0);
   // Sync tabRef quand tab change
   useEffect(() => { tabRef.current = tab; }, [tab]);
+
+  // Bouton Bingo : le serveur dit si l'usager est admin, joueur ou sans accès
+  useEffect(() => {
+    if (!user) { setBingo(null); return; }
+    bingoApi.access()
+      .then(r => setBingo(r?.role ? r : null))
+      .catch(() => setBingo(null));
+  }, [user?.id]);
 
 
 
@@ -126,6 +136,11 @@ function AppContent() {
     return <OwnerPage onExit={() => setTab('picks')} />;
   }
 
+  // Page Bingo — fullscreen, seulement si autorisé
+  if (tab === 'bingo' && bingo?.role) {
+    return <BingoPage role={bingo.role} label={bingo.label} onExit={() => setTab('picks')} />;
+  }
+
   return (
     <div className={`app${tab === 'chat' ? ' chat-active' : ''}`}>
       {showWarning && (
@@ -142,13 +157,19 @@ function AppContent() {
             <img src="/la28-logo.png" alt="LA28" className="header-logo" />
             <div
               onDoubleClick={() => { if (getMyLevel(user) === 1) setTab('owner'); }}
-              style={{ cursor: getMyLevel(user) === 1 ? 'default' : 'default' }}
-            >
+                          >
               <h1>{t('appTitle')}</h1>
               <span className="edition">{t('appEdition')}</span>
             </div>
           </div>
-          <div className="header-right"><UserMenu /></div>
+          <div className="header-right">
+            {bingo?.role && (
+              <button className="owner-home-btn" onClick={() => setTab('bingo')}>
+                🎯 {bingo.label || 'Bingo'}
+              </button>
+            )}
+            <UserMenu />
+          </div>
         </header>
 
         <nav className="app-nav">

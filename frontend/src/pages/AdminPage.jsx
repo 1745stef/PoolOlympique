@@ -54,6 +54,9 @@ export default function AdminPage({ onSettingsChange }) {
   const [newGroupName, setNewGroupName] = useState('');
   const [settings, setSettings]     = useState({ inactivity_enabled: true, inactivity_timeout: 30, inactivity_warning: 2 });
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [bingo, setBingo]               = useState({ label: 'Bingo', cols: 5, rows: 5, admins: [], players: [] });
+  const [bingoSaved, setBingoSaved]     = useState(false);
+  const [bingoError, setBingoError]     = useState(null);
   const [mutes, setMutes]               = useState([]);
   const [muteTarget, setMuteTarget]     = useState(null); // user à muter
   const [muteDuration, setMuteDuration] = useState('60'); // minutes
@@ -74,6 +77,7 @@ export default function AdminPage({ onSettingsChange }) {
     const backendCalls = [groupsApi.getAll(), adminApi.getUsers()];
     if (isAdmin) backendCalls.push(adminApi.getResults(), adminApi.getRoles());
     if (isSuperAdmin) backendCalls.push(adminApi.getSettings());
+    if (isSuperAdmin) adminApi.getBingoAccess().then(setBingo).catch(() => {});
 
     Promise.all(backendCalls)
       .then((results_arr) => {
@@ -225,6 +229,31 @@ export default function AdminPage({ onSettingsChange }) {
         ? { ...g, group_members: (g.group_members || []).filter(m => m.user_id !== userId) }
         : g));
     } catch (e) { notify(e.message, 'error'); }
+  };
+
+  // ── Bingo : qui est admin / joueur ───────────────────────────────────────────
+  // Une personne est soit Admin, soit Joueur, soit sans accès (Admin l'emporte).
+  const setBingoRole = (username, role) => {
+    const key = username.toLowerCase();
+    setBingo(b => ({
+      ...b,
+      admins:  b.admins.filter(u => u !== key).concat(role === 'admin'  ? [key] : []),
+      players: b.players.filter(u => u !== key).concat(role === 'player' ? [key] : []),
+    }));
+  };
+  const bingoRoleOf = (username) => {
+    const key = username.toLowerCase();
+    return bingo.admins.includes(key) ? 'admin' : bingo.players.includes(key) ? 'player' : 'none';
+  };
+
+  const handleSaveBingo = async () => {
+    setBingoError(null);
+    try {
+      const updated = await adminApi.updateBingoAccess(bingo);
+      setBingo(updated);
+      setBingoSaved(true);
+      setTimeout(() => setBingoSaved(false), 3000);
+    } catch (e) { setBingoError(e.message); }
   };
 
   // ── Settings ─────────────────────────────────────────────────────────────────
@@ -591,6 +620,48 @@ export default function AdminPage({ onSettingsChange }) {
             <div className="settings-footer">
               {settingsSaved && <span className="settings-saved">✓ {t('settingsSaved')}</span>}
               <button className="btn-primary" onClick={handleSaveSettings}>{t('settingsSave')}</button>
+            </div>
+          </div>
+
+          <div className="settings-card">
+            <h3 className="settings-title">🎯 Bingo</h3>
+            <p className="settings-desc">Bouton dans l'en-tête. Admin : édite et révèle les cases. Joueur : voit seulement les cases révélées, en direct. Sauvegardé en base de données.</p>
+            <div className="settings-row">
+              <label className="settings-label">Texte du bouton</label>
+              <input className="settings-input" style={{ width: 200 }} maxLength={40} value={bingo.label}
+                onChange={e => setBingo(b => ({ ...b, label: e.target.value }))} />
+            </div>
+            <div className="settings-row">
+              <label className="settings-label">Grille (colonnes × lignes)</label>
+              <div className="settings-input-group">
+                <input type="number" min="1" max="10" className="settings-input" value={bingo.cols}
+                  onChange={e => setBingo(b => ({ ...b, cols: parseInt(e.target.value) || 1 }))} />
+                <span className="settings-unit">×</span>
+                <input type="number" min="1" max="10" className="settings-input" value={bingo.rows}
+                  onChange={e => setBingo(b => ({ ...b, rows: parseInt(e.target.value) || 1 }))} />
+              </div>
+            </div>
+            <div className="settings-row" style={{ alignItems: 'flex-start' }}>
+              <label className="settings-label">Accès par usager</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
+                {users.map(u => (
+                  <div key={u.id} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', minWidth: 260 }}>
+                    <span>{u.username}</span>
+                    <select className="settings-input" style={{ width: 120 }}
+                      value={bingoRoleOf(u.username)}
+                      onChange={e => setBingoRole(u.username, e.target.value)}>
+                      <option value="none">— Aucun —</option>
+                      <option value="player">Joueur</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {bingoError && <div style={{ color: '#e05252', fontSize: '0.82rem' }}>{bingoError}</div>}
+            <div className="settings-footer">
+              {bingoSaved && <span className="settings-saved">✓ {t('settingsSaved')}</span>}
+              <button className="btn-primary" onClick={handleSaveBingo}>{t('settingsSave')}</button>
             </div>
           </div>
         </div>

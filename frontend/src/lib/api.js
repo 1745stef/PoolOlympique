@@ -69,11 +69,22 @@ export const adminApi = {
   getSettings:    ()                  => apiFetch('/admin/settings'),
   updateSettings: (data)              => apiFetch('/admin/settings', { method: 'PUT', body: JSON.stringify(data) }),
   getRoles:       ()                  => apiFetch('/admin/roles'),
+  getBingoAccess: ()                  => apiFetch('/admin/bingo-access'),
+  updateBingoAccess: (data)           => apiFetch('/admin/bingo-access', { method: 'PUT', body: JSON.stringify(data) }),
   setUserRole:    (uid, role_id)      => apiFetch(`/admin/users/${uid}/role`, { method: 'PUT', body: JSON.stringify({ role_id }) }),
 };
 
 export const settingsApi = {
   get: () => apiFetch('/settings'),
+};
+
+export const bingoApi = {
+  access:     ()               => apiFetch('/bingo/access'),
+  player:     ()               => apiFetch('/bingo/player'),
+  adminCells: ()               => apiFetch('/bingo/admin'),
+  saveCell:   (pos, data)      => apiFetch(`/bingo/admin/cells/${pos}`, { method: 'PUT', body: JSON.stringify(data) }),
+  setActive:  (active)         => apiFetch('/bingo/admin/active', { method: 'POST', body: JSON.stringify({ active }) }),
+  reveal:     (pos, revealed)  => apiFetch(`/bingo/admin/cells/${pos}/reveal`, { method: 'POST', body: JSON.stringify({ revealed }) }),
 };
 
 // API Codante — uniquement pour les pays maintenant
